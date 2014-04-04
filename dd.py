@@ -62,6 +62,22 @@ def getPhysicalDimension(Unit):
     getError(error)
     return output.replace('\x00','').strip()
 
+class signalInfo(object):
+    def __init__(self, name, type, index, timeBase):
+        object.__init__(self)
+        self.name = name
+        self.type = type
+        self.index = index
+        self.timeBase = timeBase
+
+    def nDim():
+        def fget(self):
+            return numpy.size(filter(lambda i: self.index[i]>1, xrange(self.index.size)))
+        return locals()
+    nDim = property(**nDim())
+
+    
+
 class shotfile(object):
     def __init__(self, diagnostic=None, pulseNumber=None, experiment='AUGD', edition=0):
         self.diaref = ctypes.c_int32(0)
@@ -132,4 +148,25 @@ class shotfile(object):
                 count += 1
             except Exception:
                 return output
+
+    def getSignalInfo(self, name):
+        if not self.status:
+            raise Exception('ddww::shotfile: Shotfile not open!')
+        error = ctypes.c_int32(0)
+        lsig = ctypes.c_uint64(len(name))
+        typ = ctypes.c_int32(0)
+        tname = b' '*8
+        ltname = ctypes.c_uint64(len(tname))
+        ind = numpy.zeros(4, dtype=numpy.uint32)
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        try:
+            tName = ctypes.c_char_p(tname)
+        except TypeError:
+            tName = ctypes.c_char_p(tname.encode())
+        __libddww__.ddsinfo_(ctypes.byref(error), ctypes.byref(self.diaref) , sigName, ctypes.byref(typ), tName, ind.ctypes.data_as(ctypes.c_void_p) , lsig , ltname)
+        getError(error.value)
+        return signalInfo(name.replace('\x00', '').strip(), numpy.uint32(typ.value), ind, tname.replace('\x00','').strip())
 
