@@ -1,6 +1,7 @@
 import numpy
 import ctypes
 import os
+import copy
 
 __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' + os.environ['SYS'] + '/libddww8.so')
 
@@ -106,7 +107,16 @@ class signalInfo(object):
         return locals()
     size = property(**size())
 
-    
+class timeBaseInfo(object):
+    """ Class storing the general information for a timebase. """
+    def __init__(self, name,  ntVal, nPreTrig, tBegin, tEnd):
+        """ Constructor initializing the timeBaseInfo object. """
+        object.__init__(self)
+        self.name = name
+        self.ntVal = ntVal
+        self.nPreTrig = nPreTrig
+        self.tBegin = tBegin
+        self.tEnd = tEnd    
 
 class shotfile(object):
     """ Class to load the data from the shotfile. """
@@ -178,12 +188,13 @@ class shotfile(object):
         """ Return list of all object names in the shotfile. """
         if not self.status:
             raise Exception('ddww: Shotfile not open!')
-        output = []
-        count = 0
+        output = {}
+        counter = 0
         while True:
             try:
-                output.append(self.getObjectName(count))
-                count += 1
+                name = self.getObjectName(counter)
+                output[counter] = name.encode()
+                counter += 1  
             except Exception:
                 return output
 
@@ -265,4 +276,45 @@ class shotfile(object):
         lsigname = ctypes.c_uint64(len(name))
         result = __libddww__.ddsignal_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2), ctypes.byref(typ) ,ctypes.byref(lbuf) , data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng), lsigname)
         getError(error)
+        return data
+
+    def getTimeBaseInfo(self, name):
+        if not self.status:
+            raise Exception('ddww::shotfile: Shotfile not open!')
+        signalInfo = self.getSignalInfo(name)
+        error = ctypes.c_int32(0)
+        lsig = ctypes.c_uint64(len(name))
+        typ = ctypes.c_int32(0)
+        ind = numpy.zeros(4, dtype=numpy.uint32)
+        lsig = ctypes.c_uint64(len(name))
+        ntval = ctypes.c_uint32(0)
+        npretrig = ctypes.c_uint32(0)
+        time1 = ctypes.c_float(0.0)
+        time2 = ctypes.c_float(0.0)
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        result = __libddww__.ddtrange_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(time1), ctypes.byref(time2), ctypes.byref(ntval), ctypes.byref(npretrig) ,lsig)
+        getError(error.value)
+        return timeBaseInfo(signalInfo.timeBase, numpy.uint32(ntval.value), numpy.uint32(npretrig.value), time1.value, time2.value)
+
+    def getTimeBase(self, name, dtype=numpy.float32):
+        if not self.status:
+            raise Exception('ddww::shotfile: Shotfile not open!')
+        info = self.getSignalInfo(name)
+        typ = ctypes.c_uint32(__type__[dtype])
+        data = numpy.zeros(info.size, dtype=dtype)
+        error = ctypes.c_int32(0)
+        lsigname = ctypes.c_uint64(len(name))
+        k1 = ctypes.c_uint32(1)
+        k2 = ctypes.c_uint32(info.index[0] )
+        lbuf = ctypes.c_uint32(info.index[0])
+        length = ctypes.c_uint32(0)
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        result = __libddww__.ddtbase_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(length) ,lsigname)
+        getError(error.value)
         return data
