@@ -36,7 +36,8 @@ def getLastAUGShotNumber():
     return numpy.uint32(pulseNumber.value)
 
 def getLastShotNumber(diagnostic, pulseNumber=None, experiment='AUGD'):
-    """ Returns the last shotnumber of the specified shotnumber. If pulseNumber is specified the search starts from this. """
+    """ Returns the highest available shotnumber of the specified diagnostic.
+    If pulseNumber is specified, the search starts from there. """
     if pulseNumber==None:
         pulseNumber = getLastAUGShotNumber()
     try:
