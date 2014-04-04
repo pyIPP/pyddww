@@ -31,7 +31,7 @@ def getLastAUGShotNumber():
     getError(error)
     return numpy.uint32(pulseNumber.value)
 
-def getLastShotNumber(experiment, diagnostic, pulseNumber=None):
+def getLastShotNumber(diagnostic, pulseNumber=None, experiment='AUGD'):
     if pulseNumber==None:
         pulseNumber = getLastAUGShotNumber()
     try:
@@ -63,10 +63,10 @@ def getPhysicalDimension(Unit):
     return output.replace('\x00','').strip()
 
 class shotfile(object):
-    def __init__(self, experiment=None, diagnostic=None, pulseNumber=None, edition=0):
+    def __init__(self, diagnostic=None, pulseNumber=None, experiment='AUGD', edition=0):
         self.diaref = ctypes.c_int32(0)
-        if experiment!=None and diagnostic!=None and pulseNumber!=None:
-            self.open(experiment, diagnostic, pulseNumber, edition)
+        if diagnostic!=None and pulseNumber!=None:
+            self.open(diagnostic, pulseNumber, experiment, edition)
 
     def __del__(self):
         self.close()
@@ -77,7 +77,7 @@ class shotfile(object):
         return locals()
     status = property(**status())
 
-    def open(self, experiment, diagnostic, pulseNumber, edition=0):
+    def open(self, diagnostic, pulseNumber, experiment='AUGD', edition=0):
         self.close()
         error = ctypes.c_int32(0)
         edit = ctypes.byref(ctypes.c_int32(edition))
