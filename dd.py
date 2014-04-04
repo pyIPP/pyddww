@@ -7,6 +7,7 @@ __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' 
 __fields__ = {'version': lambda: numpy.int32(0), 'level': lambda: numpy.int32(0), 'status': lambda: numpy.int32(0), 'error': lambda: numpy.int32(0), 'relations': lambda: numpy.zeros(8, dtype=numpy.int32), 'address': lambda: numpy.int32(0), 'length': lambda: numpy.int32(0), 'objnr': lambda: numpy.int32(0), 'format': lambda: numpy.zeros(3, dtype=numpy.int32), 'dataformat': lambda: numpy.int32(0), 'objtype': lambda: numpy.int32(0), 'text': lambda: 64*b' ', 'size': lambda: numpy.int32(0), 'indices': lambda: numpy.zeros(3, dtype=numpy.int32), 'items': lambda: numpy.int32(0)}
 
 def getError(error):
+    """ Check if an error/warning occured. """
     try:
         err = ctypes.c_int32(error)
     except TypeError:
@@ -27,6 +28,7 @@ def getError(error):
             raise Warning(text.value.strip())
 
 def getLastAUGShotNumber():
+    """ Returns the current shotnumber of ASDEX Upgrade """
     error = ctypes.c_int32(0)
     pulseNumber = ctypes.c_uint32(0)
     __libddww__.ddlastshotnr_(ctypes.byref(error), ctypes.byref(pulseNumber))
@@ -34,6 +36,7 @@ def getLastAUGShotNumber():
     return numpy.uint32(pulseNumber.value)
 
 def getLastShotNumber(diagnostic, pulseNumber=None, experiment='AUGD'):
+    """ Returns the last shotnumber of the specified shotnumber. If pulseNumber is specified the search starts from this. """
     if pulseNumber==None:
         pulseNumber = getLastAUGShotNumber()
     try:
@@ -52,6 +55,7 @@ def getLastShotNumber(diagnostic, pulseNumber=None, experiment='AUGD'):
     return numpy.uint32(cshot.value)
 
 def getPhysicalDimension(Unit):
+    """ Returns human readable physical dimension of Unit. """
     try:
         physunit = ctypes.c_int32(Unit)
     except TypeError:
@@ -65,7 +69,9 @@ def getPhysicalDimension(Unit):
     return output.replace('\x00','').strip()
 
 class signalInfo(object):
+    """ Class storing the general information of a Signal. """
     def __init__(self, name, type, index, timeBase):
+        """ Constructor initializing the signalInfo object. """
         object.__init__(self)
         self.name = name
         self.type = type
@@ -73,12 +79,14 @@ class signalInfo(object):
         self.timeBase = timeBase
 
     def nDim():
+        doc = """ Number of dimension of the signal. """
         def fget(self):
             return numpy.size(filter(lambda i: self.index[i]>1, xrange(self.index.size)))
         return locals()
     nDim = property(**nDim())
 
     def size():
+        doc = """ Number of total datapoints in the signal. """
         def fget(self):
             return self.index[:self.nDim].prod()
         return locals()
@@ -87,21 +95,26 @@ class signalInfo(object):
     
 
 class shotfile(object):
+    """ Class to load the data from the shotfile. """
     def __init__(self, diagnostic=None, pulseNumber=None, experiment='AUGD', edition=0):
+        """ Basic constructor. If a diagnostic is specified the shotfile is opened. """
         self.diaref = ctypes.c_int32(0)
         if diagnostic!=None and pulseNumber!=None:
             self.open(diagnostic, pulseNumber, experiment, edition)
 
     def __del__(self):
+        """ Basic destructor closing the shotfile. """
         self.close()
 
     def status():
+        doc = """ Status showing if shotfile is open. """
         def fget(self):
             return self.diaref.value!=0
         return locals()
     status = property(**status())
 
     def open(self, diagnostic, pulseNumber, experiment='AUGD', edition=0):
+        """ Function opening the specified shotfile. """
         self.close()
         error = ctypes.c_int32(0)
         edit = ctypes.byref(ctypes.c_int32(edition))
@@ -125,27 +138,30 @@ class shotfile(object):
         getError(error)
 
     def close(self):
+        """ Close the shotfile. """
         if self.status:
             error = ctypes.c_int32(0)
             result = __libddww__.ddclose_(ctypes.byref(error), ctypes.byref(self.diaref))
             getError(error)    
             self.diaref.value = 0
                
-    def getObjectName(self, object):
+    def getObjectName(self, objectNumber):
+        """ Return name of object """
         if not self.status:
             raise Exception('ddww: Shotfile not open!')
         error = ctypes.c_int32(0)
         lname = ctypes.c_uint64(8)
         try:
-            obj = ctypes.c_int32(object)
+            obj = ctypes.c_int32(objectNumber)
         except TypeError:
-            obj = ctypes.c_int32(object.value)
+            obj = ctypes.c_int32(objectNumber.value)
         name = b' '*8
         __libddww__.ddobjname_(ctypes.byref(error), ctypes.byref(self.diaref), ctypes.byref(obj), ctypes.c_char_p(name), lname)
         getError(error)
         return name.replace('\x00','').strip()
 
     def getObjectNames(self):
+        """ Return list of all object names in the shotfile. """
         if not self.status:
             raise Exception('ddww: Shotfile not open!')
         output = []
@@ -158,6 +174,7 @@ class shotfile(object):
                 return output
 
     def getSignalInfo(self, name):
+        """ Returns a signalInfo object containing the information of the signal name """
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         error = ctypes.c_int32(0)
@@ -179,6 +196,7 @@ class shotfile(object):
         return signalInfo(name.replace('\x00', '').strip(), numpy.uint32(typ.value), ind, tname.replace('\x00','').strip())
 
     def getObjectValue(self, name, field):
+        """ Returns the value for the specified field for the given object name. """
         if not self.status:
             raise Exception('Shotfile not open')
         error = ctypes.c_int32(0)
