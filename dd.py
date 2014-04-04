@@ -4,6 +4,8 @@ import os
 
 __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' + os.environ['SYS'] + '/libddww8.so')
 
+__fields__ = {'version': lambda: numpy.int32(0), 'level': lambda: numpy.int32(0), 'status': lambda: numpy.int32(0), 'error': lambda: numpy.int32(0), 'relations': lambda: numpy.zeros(8, dtype=numpy.int32), 'address': lambda: numpy.int32(0), 'length': lambda: numpy.int32(0), 'objnr': lambda: numpy.int32(0), 'format': lambda: numpy.zeros(3, dtype=numpy.int32), 'dataformat': lambda: numpy.int32(0), 'objtype': lambda: numpy.int32(0), 'text': lambda: 64*b' ', 'size': lambda: numpy.int32(0), 'indices': lambda: numpy.zeros(3, dtype=numpy.int32), 'items': lambda: numpy.int32(0)}
+
 def getError(error):
     try:
         err = ctypes.c_int32(error)
@@ -61,6 +63,28 @@ def getPhysicalDimension(Unit):
     __libddww__.dddim_(ctypes.byref(error), ctypes.byref(physunit), physdim, lphysdim)
     getError(error)
     return output.replace('\x00','').strip()
+
+class signalInfo(object):
+    def __init__(self, name, type, index, timeBase):
+        object.__init__(self)
+        self.name = name
+        self.type = type
+        self.index = index
+        self.timeBase = timeBase
+
+    def nDim():
+        def fget(self):
+            return numpy.size(filter(lambda i: self.index[i]>1, xrange(self.index.size)))
+        return locals()
+    nDim = property(**nDim())
+
+    def size():
+        def fget(self):
+            return self.index[:self.nDim].prod()
+        return locals()
+    size = property(**size())
+
+    
 
 class shotfile(object):
     def __init__(self, diagnostic=None, pulseNumber=None, experiment='AUGD', edition=0):
@@ -133,3 +157,54 @@ class shotfile(object):
             except Exception:
                 return output
 
+    def getSignalInfo(self, name):
+        if not self.status:
+            raise Exception('ddww::shotfile: Shotfile not open!')
+        error = ctypes.c_int32(0)
+        lsig = ctypes.c_uint64(len(name))
+        typ = ctypes.c_int32(0)
+        tname = b' '*8
+        ltname = ctypes.c_uint64(len(tname))
+        ind = numpy.zeros(4, dtype=numpy.uint32)
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        try:
+            tName = ctypes.c_char_p(tname)
+        except TypeError:
+            tName = ctypes.c_char_p(tname.encode())
+        __libddww__.ddsinfo_(ctypes.byref(error), ctypes.byref(self.diaref) , sigName, ctypes.byref(typ), tName, ind.ctypes.data_as(ctypes.c_void_p) , lsig , ltname)
+        getError(error.value)
+        return signalInfo(name.replace('\x00', '').strip(), numpy.uint32(typ.value), ind, tname.replace('\x00','').strip())
+
+    def getObjectValue(self, name, field):
+        if not self.status:
+            raise Exception('Shotfile not open')
+        error = ctypes.c_int32(0)
+        data = __fields__[field]()
+        try:
+            value = ctypes.c_char_p(data)
+        except TypeError:
+            try:
+                value = data.ctypes.data_as(ctypes.c_void_p)
+            except AttributeError:
+                del data
+                val = ctypes.c_int32(0)
+                value = ctypes.byref(val)
+        try:
+            _name = ctypes.c_char_p(name)
+        except TypeError:
+            _name = ctypes.c_char_p(name.encode())
+        try:
+            _field = ctypes.c_char_p(field)
+        except TypeError:
+            _field = ctypes.c_char_p(field.encode())
+        lname = ctypes.c_uint64(len(name))
+        lfield = ctypes.c_uint64(len(field))
+        result = __libddww__.ddobjval_(ctypes.byref(error),ctypes.byref(self.diaref),_name,_field, value,lname,lfield)
+        getError(error)
+        try:
+            return data
+        except Exception, Error:
+            return numpy.int32(val.value)
