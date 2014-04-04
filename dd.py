@@ -62,7 +62,6 @@ def GetPhysicalDimension(Unit):
     GetError(error)
     return output.replace('\x00','').strip()
 
-
 class Shotfile(object):
     def __init__(self, Experiment=None, Diagnostic=None, PulseNumber=None, Edition=0):
         self.diaref = ctypes.c_int32(0)
@@ -107,3 +106,30 @@ class Shotfile(object):
             result = __libddww__.ddclose_(ctypes.byref(error), ctypes.byref(self.diaref))
             GetError(error)    
             self.diaref.value = 0
+               
+    def GetObjectName(self, Object):
+        if not self.status:
+            raise Exception('ddww: Shotfile not open!')
+        error = ctypes.c_int32(0)
+        lname = ctypes.c_uint64(8)
+        try:
+            obj = ctypes.c_int32(Object)
+        except TypeError:
+            obj = ctypes.c_int32(Object.value)
+        name = b' '*8
+        __libddww__.ddobjname_(ctypes.byref(error), ctypes.byref(self.diaref), ctypes.byref(obj), ctypes.c_char_p(name), lname)
+        GetError(error)
+        return name.replace('\x00','').strip()
+
+    def GetObjectNames(self):
+        if not self.status:
+            raise Exception('ddww: Shotfile not open!')
+        output = []
+        count = 0
+        while True:
+            try:
+                output.append(self.GetObjectName(count))
+                count += 1
+            except Exception:
+                return output
+
