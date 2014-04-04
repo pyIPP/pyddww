@@ -49,6 +49,20 @@ def GetLastShotNumber(Experiment, Diagnostic, PulseNumber=None):
     __libddww__.ddcshotnr_(exper, diag, ctypes.byref(shot), ctypes.byref(cshot), lexper, ldiag)
     return numpy.uint32(cshot.value)
 
+def GetPhysicalDimension(Unit):
+    try:
+        physunit = ctypes.c_int32(Unit)
+    except TypeError:
+        physunit = ctypes.c_int32(Unit.value)
+    error = ctypes.c_int32(0)
+    output = b' '*256
+    physdim = ctypes.c_char_p(output)
+    lphysdim = ctypes.c_uint64(256)
+    __libddww__.dddim_(ctypes.byref(error), ctypes.byref(physunit), physdim, lphysdim)
+    GetError(error)
+    return output.replace('\x00','').strip()
+
+
 class Shotfile(object):
     def __init__(self, Experiment=None, Diagnostic=None, PulseNumber=None, Edition=0):
         self.diaref = ctypes.c_int32(0)
