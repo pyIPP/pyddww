@@ -4,7 +4,7 @@ import os
 
 __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' + os.environ['SYS'] + '/libddww8.so')
 
-def GetError(error):
+def getError(error):
     try:
         err = ctypes.c_int32(error)
     except TypeError:
@@ -24,32 +24,32 @@ def GetError(error):
         else:
             raise Warning(text.value.strip())
 
-def GetLastAUGShotNumber():
+def getLastAUGShotNumber():
     error = ctypes.c_int32(0)
     pulseNumber = ctypes.c_uint32(0)
     __libddww__.ddlastshotnr_(ctypes.byref(error), ctypes.byref(pulseNumber))
-    GetError(error)
+    getError(error)
     return numpy.uint32(pulseNumber.value)
 
-def GetLastShotNumber(Experiment, Diagnostic, PulseNumber=None):
-    if PulseNumber==None:
-        PulseNumber = GetLastAUGShotNumber()
+def getLastShotNumber(experiment, diagnostic, pulseNumber=None):
+    if pulseNumber==None:
+        pulseNumber = getLastAUGShotNumber()
     try:
-        exper = ctypes.c_char_p(Experiment)
+        exper = ctypes.c_char_p(experiment)
     except TypeError:
-        exper = ctypes.c_char_p(Experiment.encode())
-    lexper = ctypes.c_uint64(len(Experiment))
+        exper = ctypes.c_char_p(experiment.encode())
+    lexper = ctypes.c_uint64(len(experiment))
     try:
-        diag = ctypes.c_char_p(Diagnostic)
+        diag = ctypes.c_char_p(diagnostic)
     except TypeError:
-        diag = ctypes.c_char_p(Diagnostic.encode())
-    ldiag = ctypes.c_uint64(len(Diagnostic))
-    shot = ctypes.c_uint32(PulseNumber)
+        diag = ctypes.c_char_p(diagnostic.encode())
+    ldiag = ctypes.c_uint64(len(diagnostic))
+    shot = ctypes.c_uint32(pulseNumber)
     cshot = ctypes.c_uint32(0)
     __libddww__.ddcshotnr_(exper, diag, ctypes.byref(shot), ctypes.byref(cshot), lexper, ldiag)
     return numpy.uint32(cshot.value)
 
-def GetPhysicalDimension(Unit):
+def getPhysicalDimension(Unit):
     try:
         physunit = ctypes.c_int32(Unit)
     except TypeError:
@@ -59,17 +59,17 @@ def GetPhysicalDimension(Unit):
     physdim = ctypes.c_char_p(output)
     lphysdim = ctypes.c_uint64(256)
     __libddww__.dddim_(ctypes.byref(error), ctypes.byref(physunit), physdim, lphysdim)
-    GetError(error)
+    getError(error)
     return output.replace('\x00','').strip()
 
-class Shotfile(object):
-    def __init__(self, Experiment=None, Diagnostic=None, PulseNumber=None, Edition=0):
+class shotfile(object):
+    def __init__(self, experiment=None, diagnostic=None, pulseNumber=None, edition=0):
         self.diaref = ctypes.c_int32(0)
-        if Experiment!=None and Diagnostic!=None and PulseNumber!=None:
-            self.Open(Experiment, Diagnostic, PulseNumber, Edition)
+        if experiment!=None and diagnostic!=None and pulseNumber!=None:
+            self.open(experiment, diagnostic, pulseNumber, edition)
 
     def __del__(self):
-        self.Close()
+        self.close()
 
     def status():
         def fget(self):
@@ -77,58 +77,58 @@ class Shotfile(object):
         return locals()
     status = property(**status())
 
-    def Open(self, Experiment, Diagnostic, PulseNumber, Edition=0):
-        self.Close()
+    def open(self, experiment, diagnostic, pulseNumber, edition=0):
+        self.close()
         error = ctypes.c_int32(0)
-        edit = ctypes.byref(ctypes.c_int32(Edition))
+        edit = ctypes.byref(ctypes.c_int32(edition))
         cshot = ctypes.byref(ctypes.c_uint32(0))
-        shot = ctypes.byref(ctypes.c_uint32(PulseNumber))
+        shot = ctypes.byref(ctypes.c_uint32(pulseNumber))
         try:
-            diag = ctypes.c_char_p(Diagnostic)
+            diag = ctypes.c_char_p(diagnostic)
         except TypeError:
-            diag = ctypes.c_char_p(Diagnostic.encode())
+            diag = ctypes.c_char_p(diagnostic.encode())
         try:
-            exper = ctypes.c_char_p(Experiment)
+            exper = ctypes.c_char_p(experiment)
         except TypeError:
-            exper = ctypes.c_char_p(Experiment.encode())
-        lexp = ctypes.c_uint64(len(Experiment))
-        ldiag = ctypes.c_uint64(len(Diagnostic))
+            exper = ctypes.c_char_p(experiment.encode())
+        lexp = ctypes.c_uint64(len(experiment))
+        ldiag = ctypes.c_uint64(len(diagnostic))
         date = ctypes.c_char_p(b'123456789012345678')
         ldate = ctypes.c_uint64(18)
         result = __libddww__.ddcshotnr_(exper,diag,shot,cshot,lexp,ldiag)
-        if result==0 and cshot._obj.value==PulseNumber:
+        if result==0 and cshot._obj.value==pulseNumber:
             result = __libddww__.ddopen_(ctypes.byref(error),exper,diag,shot,edit,ctypes.byref(self.diaref),date,lexp,ldiag,ldate)
-        GetError(error)
+        getError(error)
 
-    def Close(self):
+    def close(self):
         if self.status:
             error = ctypes.c_int32(0)
             result = __libddww__.ddclose_(ctypes.byref(error), ctypes.byref(self.diaref))
-            GetError(error)    
+            getError(error)    
             self.diaref.value = 0
                
-    def GetObjectName(self, Object):
+    def getObjectName(self, object):
         if not self.status:
             raise Exception('ddww: Shotfile not open!')
         error = ctypes.c_int32(0)
         lname = ctypes.c_uint64(8)
         try:
-            obj = ctypes.c_int32(Object)
+            obj = ctypes.c_int32(object)
         except TypeError:
-            obj = ctypes.c_int32(Object.value)
+            obj = ctypes.c_int32(object.value)
         name = b' '*8
         __libddww__.ddobjname_(ctypes.byref(error), ctypes.byref(self.diaref), ctypes.byref(obj), ctypes.c_char_p(name), lname)
-        GetError(error)
+        getError(error)
         return name.replace('\x00','').strip()
 
-    def GetObjectNames(self):
+    def getObjectNames(self):
         if not self.status:
             raise Exception('ddww: Shotfile not open!')
         output = []
         count = 0
         while True:
             try:
-                output.append(self.GetObjectName(count))
+                output.append(self.getObjectName(count))
                 count += 1
             except Exception:
                 return output
