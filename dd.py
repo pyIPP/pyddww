@@ -24,6 +24,31 @@ def GetError(error):
         else:
             raise Warning(text.value.strip())
 
+def GetLastAUGShotNumber():
+    error = ctypes.c_int32(0)
+    pulseNumber = ctypes.c_uint32(0)
+    __libddww__.ddlastshotnr_(ctypes.byref(error), ctypes.byref(pulseNumber))
+    GetError(error)
+    return numpy.uint32(pulseNumber.value)
+
+def GetLastShotNumber(Experiment, Diagnostic, PulseNumber=None):
+    if PulseNumber==None:
+        PulseNumber = GetLastAUGShotNumber()
+    try:
+        exper = ctypes.c_char_p(Experiment)
+    except TypeError:
+        exper = ctypes.c_char_p(Experiment.encode())
+    lexper = ctypes.c_uint64(len(Experiment))
+    try:
+        diag = ctypes.c_char_p(Diagnostic)
+    except TypeError:
+        diag = ctypes.c_char_p(Diagnostic.encode())
+    ldiag = ctypes.c_uint64(len(Diagnostic))
+    shot = ctypes.c_uint32(PulseNumber)
+    cshot = ctypes.c_uint32(0)
+    __libddww__.ddcshotnr_(exper, diag, ctypes.byref(shot), ctypes.byref(cshot), lexper, ldiag)
+    return numpy.uint32(cshot.value)
+
 class Shotfile(object):
     def __init__(self, Experiment=None, Diagnostic=None, PulseNumber=None, Edition=0):
         self.diaref = ctypes.c_int32(0)
