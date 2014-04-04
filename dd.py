@@ -4,7 +4,21 @@ import os
 
 __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' + os.environ['SYS'] + '/libddww8.so')
 
+__type__ = {numpy.int32:1, numpy.float32:2, numpy.float64:3, numpy.complex:4, numpy.bool:5, numpy.byte:6, numpy.int64:10, numpy.int16:11, numpy.uint16:12, numpy.uint32:13, numpy.uint64:14}
+
 __fields__ = {'version': lambda: numpy.int32(0), 'level': lambda: numpy.int32(0), 'status': lambda: numpy.int32(0), 'error': lambda: numpy.int32(0), 'relations': lambda: numpy.zeros(8, dtype=numpy.int32), 'address': lambda: numpy.int32(0), 'length': lambda: numpy.int32(0), 'objnr': lambda: numpy.int32(0), 'format': lambda: numpy.zeros(3, dtype=numpy.int32), 'dataformat': lambda: numpy.int32(0), 'objtype': lambda: numpy.int32(0), 'text': lambda: 64*b' ', 'size': lambda: numpy.int32(0), 'indices': lambda: numpy.zeros(3, dtype=numpy.int32), 'items': lambda: numpy.int32(0)}
+
+__dataformat__ = {  1:numpy.uint8,
+                    2:numpy.char,
+                    3:numpy.int16,
+                    4:numpy.int32,
+                    5:numpy.float32,
+                    6:numpy.float64,
+                    7:numpy.bool,
+                    9:numpy.uint16,
+                    13:numpy.int64,
+                    14:numpy.uint32,
+                    15:numpy.uint64}
 
 def getError(error):
     """ Check if an error/warning occured. """
@@ -226,3 +240,29 @@ class shotfile(object):
             return data
         except Exception, Error:
             return numpy.int32(val.value)
+
+    def getSignal(self, name, dtype=None):
+        """ Return uncalibrated signal. If dtype is specified the data is converted accordingly, else the data is returned in the format used in the shotfile. """
+        if not self.status:
+            raise Exception('ddww::shotfile: Shotfile not open!')
+        info = self.getSignalInfo(name)
+        try:
+            typ = ctypes.c_uint32(__type__[dtype])
+            data = numpy.zeros(info.size, dtype=dtype)
+        except KeyError, Error:
+            dataformat = self.getObjectValue(name, 'dataformat')
+            typ = ctypes.c_uint32(0)
+            data = numpy.zeros(info.size, dtype=__dataformat__[dataformat])
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        error = ctypes.c_int32(0)
+        leng = ctypes.c_uint32(0)
+        k1 = ctypes.c_uint32(1)
+        k2 = ctypes.c_uint32(info.index[0])
+        lbuf = ctypes.c_uint32(info.index[0])
+        lsigname = ctypes.c_uint64(len(name))
+        result = __libddww__.ddsignal_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2), ctypes.byref(typ) ,ctypes.byref(lbuf) , data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng), lsigname)
+        getError(error)
+        return data
