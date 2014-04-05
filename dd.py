@@ -47,7 +47,7 @@ def getError(error):
         if isError:
             raise Exception(text.value.strip())
         else:
-            raise Warning(text.value.strip())
+            raise UserWarning(text.value.strip())
 
 def getLastAUGShotNumber():
     """ Returns the current shotnumber of ASDEX Upgrade """
@@ -332,6 +332,48 @@ class shotfile(object):
                              ctypes.byref(ncal), ctypes.c_char_p(physdim), lname, ctypes.c_uint64(8))
         getError(error.value)
         return data, physdim.replace('\x00', '').strip()
+
+    def getSignalGroup(self, name, dtype=None, tBegin=None, tEnd=None):       
+        """ Return uncalibrated signalgroup. If dtype is specified the data is
+        converted accordingly, else the data is returned in the format used 
+        in the shotfile. """
+        if not self.status:
+            raise Exception('ddww::shotfile: Shotfile not open!')
+        info = self.getSignalInfo(name)
+        tInfo = self.getTimeBaseInfo(name)
+        if tBegin==None:
+            tBegin = tInfo.tBegin
+        if tEnd==None:
+            tEnd = tInfo.tEnd
+        k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        size = info.size/info.index[0]*(k2-k1+1)
+        print info.size, size
+        try:
+            typ = ctypes.c_uint32(__type__[dtype])
+            data = numpy.zeros(size, dtype=dtype)
+        except KeyError, Error:
+            dataformat = self.getObjectValue(name, 'dataformat')
+            typ = ctypes.c_uint32(0)
+            data = numpy.zeros(size, dtype=__dataformat__[dataformat])
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        error = ctypes.c_int32(0)
+        leng = ctypes.c_uint32(0)
+        lbuf = ctypes.c_uint32(k2-k1+1)
+        k1 = ctypes.c_uint32(k1)
+        k2 = ctypes.c_uint32(k2)
+        lname = ctypes.c_uint64(len(name))
+        __libddww__.ddsgroup_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), 
+                              ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), 
+                              ctypes.byref(leng), lname)
+        try:
+            getError(error.value)
+        finally:
+            index1 = numpy.uint32(k2.value-k1.value+1)
+            index = numpy.append(index1, info.index[1:])
+            return data.reshape(tuple(index[:info.nDim]), order='F')
 
     def getTimeBaseInfo(self, name):
         """ Return information regarding timebase corresponding to name. """
