@@ -301,6 +301,38 @@ class shotfile(object):
         getError(error)
         return data
 
+    def getSignalCalibrated(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
+        """ Return calibrated signal. If dtype is specified the data is
+        converted accordingly, else the data is returned as numpy.float32. """
+        if not self.status:
+            raise Exception('ddww::shotfile: Shotfile not open!')
+        info = self.getSignalInfo(name)
+        tInfo = self.getTimeBaseInfo(name)
+        if tBegin==None:
+            tBegin = tInfo.tBegin
+        if tEnd==None:
+            tEnd = tInfo.tEnd
+        k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        typ = ctypes.c_uint32(__type__[dtype])
+        data = numpy.zeros(k2-k1+1, dtype=dtype)
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        error = ctypes.c_int32(0)
+        leng = ctypes.c_uint32(0)
+        lbuf = ctypes.c_uint32(k2-k1+1)
+        k1 = ctypes.c_uint32(k1)
+        k2 = ctypes.c_uint32(k2)
+        ncal = ctypes.c_int32(0)
+        lname = ctypes.c_uint64(len(name))
+        physdim = b' '*8
+        __libddww__.ddcsgnl_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2), 
+                             ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng), 
+                             ctypes.byref(ncal), ctypes.c_char_p(physdim), lname, ctypes.c_uint64(8))
+        getError(error.value)
+        return data, physdim.replace('\x00', '').strip()
+
     def getTimeBaseInfo(self, name):
         """ Return information regarding timebase corresponding to name. """
         if not self.status:
