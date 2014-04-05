@@ -265,29 +265,35 @@ class shotfile(object):
         except Exception, Error:
             return numpy.int32(val.value)
 
-    def getSignal(self, name, dtype=None):
+    def getSignal(self, name, dtype=None, tBegin=None, tEnd=None):
         """ Return uncalibrated signal. If dtype is specified the data is
         converted accordingly, else the data is returned in the format used
         in the shotfile. """
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         info = self.getSignalInfo(name)
+        tInfo = self.getTimeBaseInfo(name)
+        if tBegin==None:
+            tBegin = tInfo.tBegin
+        if tEnd==None:
+            tEnd = tInfo.tEnd
+        k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
         try:
             typ = ctypes.c_uint32(__type__[dtype])
-            data = numpy.zeros(info.size, dtype=dtype)
+            data = numpy.zeros(k2-k1+1, dtype=dtype)
         except KeyError, Error:
             dataformat = self.getObjectValue(name, 'dataformat')
             typ = ctypes.c_uint32(0)
-            data = numpy.zeros(info.size, dtype=__dataformat__[dataformat])
+            data = numpy.zeros(k2-k1+1, dtype=__dataformat__[dataformat])
         try:
             sigName = ctypes.c_char_p(name)
         except TypeError:
             sigName = ctypes.c_char_p(name.encode())
         error = ctypes.c_int32(0)
         leng = ctypes.c_uint32(0)
-        k1 = ctypes.c_uint32(1)
-        k2 = ctypes.c_uint32(info.index[0])
-        lbuf = ctypes.c_uint32(info.index[0])
+        lbuf = ctypes.c_uint32(k2-k1+1)
+        k1 = ctypes.c_uint32(k1)
+        k2 = ctypes.c_uint32(k2)
         lsigname = ctypes.c_uint64(len(name))
         result = __libddww__.ddsignal_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), 
                                        ctypes.byref(k2), ctypes.byref(typ) ,ctypes.byref(lbuf) , 
@@ -296,6 +302,7 @@ class shotfile(object):
         return data
 
     def getTimeBaseInfo(self, name):
+        """ Return information regarding timebase corresponding to name. """
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         signalInfo = self.getSignalInfo(name)
@@ -312,11 +319,13 @@ class shotfile(object):
             sigName = ctypes.c_char_p(name)
         except TypeError:
             sigName = ctypes.c_char_p(name.encode())
-        result = __libddww__.ddtrange_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(time1), ctypes.byref(time2), ctypes.byref(ntval), ctypes.byref(npretrig) ,lsig)
+        result = __libddww__.ddtrange_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(time1), 
+                                       ctypes.byref(time2), ctypes.byref(ntval), ctypes.byref(npretrig) ,lsig)
         getError(error.value)
         return timeBaseInfo(signalInfo.timeBase, numpy.uint32(ntval.value), numpy.uint32(npretrig.value), time1.value, time2.value)
 
     def getTimeBase(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
+        """ Return timebase corresponding to name. """
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         info = self.getSignalInfo(name)
@@ -338,11 +347,14 @@ class shotfile(object):
             sigName = ctypes.c_char_p(name)
         except TypeError:
             sigName = ctypes.c_char_p(name.encode())
-        result = __libddww__.ddtbase_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(length) ,lsigname)
+        result = __libddww__.ddtbase_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), 
+                                      ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), 
+                                      ctypes.byref(length) ,lsigname)
         getError(error.value)
         return data
 
     def getTimeBaseIndices(self, name, tBegin, tEnd):
+        """ Return time indices of name corresponding to tBegin and tEnd """
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         try:
@@ -370,7 +382,8 @@ class shotfile(object):
         k1 = ctypes.c_uint32(0)
         k2 = ctypes.c_uint32(0)
         lname = ctypes.c_uint64(len(name))
-        __libddww__.ddtindex_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(time1), ctypes.byref(time2), ctypes.byref(k1), ctypes.byref(k2), lname)
+        __libddww__.ddtindex_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(time1), 
+                              ctypes.byref(time2), ctypes.byref(k1), ctypes.byref(k2), lname)
         getError(error.value)
         return numpy.uint32(k1.value), numpy.uint32(k2.value)
 
