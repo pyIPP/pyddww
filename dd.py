@@ -5,9 +5,16 @@ import copy
 
 __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' + os.environ['SYS'] + '/libddww8.so')
 
-__type__ = {numpy.int32:1, numpy.float32:2, numpy.float64:3, numpy.complex:4, numpy.bool:5, numpy.byte:6, numpy.int64:10, numpy.int16:11, numpy.uint16:12, numpy.uint32:13, numpy.uint64:14}
+__type__ = {numpy.int32:1, numpy.float32:2, numpy.float64:3, numpy.complex:4, numpy.bool:5, 
+            numpy.byte:6, numpy.int64:10, numpy.int16:11, numpy.uint16:12, numpy.uint32:13, 
+            numpy.uint64:14}
 
-__fields__ = {'version': lambda: numpy.int32(0), 'level': lambda: numpy.int32(0), 'status': lambda: numpy.int32(0), 'error': lambda: numpy.int32(0), 'relations': lambda: numpy.zeros(8, dtype=numpy.int32), 'address': lambda: numpy.int32(0), 'length': lambda: numpy.int32(0), 'objnr': lambda: numpy.int32(0), 'format': lambda: numpy.zeros(3, dtype=numpy.int32), 'dataformat': lambda: numpy.int32(0), 'objtype': lambda: numpy.int32(0), 'text': lambda: 64*b' ', 'size': lambda: numpy.int32(0), 'indices': lambda: numpy.zeros(3, dtype=numpy.int32), 'items': lambda: numpy.int32(0)}
+__fields__ = {'version': lambda: numpy.int32(0), 'level': lambda: numpy.int32(0), 'status': lambda: numpy.int32(0),
+              'error': lambda: numpy.int32(0), 'relations': lambda: numpy.zeros(8, dtype=numpy.int32), 
+              'address': lambda: numpy.int32(0), 'length': lambda: numpy.int32(0), 'objnr': lambda: numpy.int32(0), 
+              'format': lambda: numpy.zeros(3, dtype=numpy.int32), 'dataformat': lambda: numpy.int32(0), 
+              'objtype': lambda: numpy.int32(0), 'text': lambda: 64*b' ', 'size': lambda: numpy.int32(0), 
+              'indices': lambda: numpy.zeros(3, dtype=numpy.int32), 'items': lambda: numpy.int32(0)}
 
 __dataformat__ = {  1:numpy.uint8,
                     2:numpy.char,
@@ -51,7 +58,8 @@ def getLastAUGShotNumber():
     return numpy.uint32(pulseNumber.value)
 
 def getLastShotNumber(diagnostic, pulseNumber=None, experiment='AUGD'):
-    """ Returns the last shotnumber of the specified shotnumber. If pulseNumber is specified the search starts from this. """
+    """ Returns the highest available shotnumber of the specified diagnostic.
+    If pulseNumber is specified, the search starts from there. """
     if pulseNumber==None:
         pulseNumber = getLastAUGShotNumber()
     try:
@@ -158,7 +166,8 @@ class shotfile(object):
         ldate = ctypes.c_uint64(18)
         result = __libddww__.ddcshotnr_(exper,diag,shot,cshot,lexp,ldiag)
         if result==0 and cshot._obj.value==pulseNumber:
-            result = __libddww__.ddopen_(ctypes.byref(error),exper,diag,shot,edit,ctypes.byref(self.diaref),date,lexp,ldiag,ldate)
+            result = __libddww__.ddopen_(ctypes.byref(error),exper,diag,shot,edit,ctypes.byref(self.diaref),
+                                         date,lexp,ldiag,ldate)
         getError(error)
 
     def close(self):
@@ -180,7 +189,8 @@ class shotfile(object):
         except TypeError:
             obj = ctypes.c_int32(objectNumber.value)
         name = b' '*8
-        __libddww__.ddobjname_(ctypes.byref(error), ctypes.byref(self.diaref), ctypes.byref(obj), ctypes.c_char_p(name), lname)
+        __libddww__.ddobjname_(ctypes.byref(error), ctypes.byref(self.diaref), ctypes.byref(obj), 
+                               ctypes.c_char_p(name), lname)
         getError(error)
         return name.replace('\x00','').strip()
 
@@ -216,9 +226,11 @@ class shotfile(object):
             tName = ctypes.c_char_p(tname)
         except TypeError:
             tName = ctypes.c_char_p(tname.encode())
-        __libddww__.ddsinfo_(ctypes.byref(error), ctypes.byref(self.diaref) , sigName, ctypes.byref(typ), tName, ind.ctypes.data_as(ctypes.c_void_p) , lsig , ltname)
+        __libddww__.ddsinfo_(ctypes.byref(error), ctypes.byref(self.diaref) , sigName, ctypes.byref(typ), 
+                             tName, ind.ctypes.data_as(ctypes.c_void_p) , lsig , ltname)
         getError(error.value)
-        return signalInfo(name.replace('\x00', '').strip(), numpy.uint32(typ.value), ind, tname.replace('\x00','').strip())
+        return signalInfo(name.replace('\x00', '').strip(), numpy.uint32(typ.value), ind, 
+                          tname.replace('\x00','').strip())
 
     def getObjectValue(self, name, field):
         """ Returns the value for the specified field for the given object name. """
@@ -245,7 +257,8 @@ class shotfile(object):
             _field = ctypes.c_char_p(field.encode())
         lname = ctypes.c_uint64(len(name))
         lfield = ctypes.c_uint64(len(field))
-        result = __libddww__.ddobjval_(ctypes.byref(error),ctypes.byref(self.diaref),_name,_field, value,lname,lfield)
+        result = __libddww__.ddobjval_(ctypes.byref(error),ctypes.byref(self.diaref),_name,_field, value,
+                                       lname,lfield)
         getError(error)
         try:
             return data
@@ -253,7 +266,9 @@ class shotfile(object):
             return numpy.int32(val.value)
 
     def getSignal(self, name, dtype=None):
-        """ Return uncalibrated signal. If dtype is specified the data is converted accordingly, else the data is returned in the format used in the shotfile. """
+        """ Return uncalibrated signal. If dtype is specified the data is
+        converted accordingly, else the data is returned in the format used
+        in the shotfile. """
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         info = self.getSignalInfo(name)
@@ -274,7 +289,9 @@ class shotfile(object):
         k2 = ctypes.c_uint32(info.index[0])
         lbuf = ctypes.c_uint32(info.index[0])
         lsigname = ctypes.c_uint64(len(name))
-        result = __libddww__.ddsignal_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2), ctypes.byref(typ) ,ctypes.byref(lbuf) , data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng), lsigname)
+        result = __libddww__.ddsignal_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), 
+                                       ctypes.byref(k2), ctypes.byref(typ) ,ctypes.byref(lbuf) , 
+                                       data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng), lsigname)
         getError(error)
         return data
 
