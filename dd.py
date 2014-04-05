@@ -299,17 +299,23 @@ class shotfile(object):
         getError(error.value)
         return timeBaseInfo(signalInfo.timeBase, numpy.uint32(ntval.value), numpy.uint32(npretrig.value), time1.value, time2.value)
 
-    def getTimeBase(self, name, dtype=numpy.float32):
+    def getTimeBase(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         info = self.getSignalInfo(name)
+        tInfo = self.getTimeBaseInfo(name)
+        if tBegin==None:
+            tBegin = tInfo.tBegin
+        if tEnd==None:
+            tEnd = tInfo.tEnd
         typ = ctypes.c_uint32(__type__[dtype])
-        data = numpy.zeros(info.size, dtype=dtype)
         error = ctypes.c_int32(0)
         lsigname = ctypes.c_uint64(len(name))
-        k1 = ctypes.c_uint32(1)
-        k2 = ctypes.c_uint32(info.index[0] )
-        lbuf = ctypes.c_uint32(info.index[0])
+        k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        data = numpy.zeros(k2-k1+1, dtype=dtype)
+        lbuf = ctypes.c_uint32(data.size)
+        k1 = ctypes.c_uint32(k1)
+        k2 = ctypes.c_uint32(k2)
         length = ctypes.c_uint32(0)
         try:
             sigName = ctypes.c_char_p(name)
@@ -318,3 +324,36 @@ class shotfile(object):
         result = __libddww__.ddtbase_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(length) ,lsigname)
         getError(error.value)
         return data
+
+    def getTimeBaseIndices(self, name, tBegin, tEnd):
+        if not self.status:
+            raise Exception('ddww::shotfile: Shotfile not open!')
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        error = ctypes.c_int32(0)
+        info = self.getTimeBaseInfo(name)
+        if tEnd < tBegin:
+            temp = tEnd
+            tEnd = tBegin
+            tBegin = temp
+        if tBegin < info.tBegin:
+            tBegin = info.tBegin
+        if tEnd > info.tEnd:
+            tEnd = info.tEnd
+        try:
+            time1 = ctypes.c_float(tBegin)
+        except TypeError:
+            time1 = ctypes.c_float(tBegin.value)
+        try:
+            time2 = ctypes.c_float(tEnd)
+        except TypeError:
+            time2 = ctypes.c_float(tEnd.value)
+        k1 = ctypes.c_uint32(0)
+        k2 = ctypes.c_uint32(0)
+        lname = ctypes.c_uint64(len(name))
+        __libddww__.ddtindex_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(time1), ctypes.byref(time2), ctypes.byref(k1), ctypes.byref(k2), lname)
+        getError(error.value)
+        return numpy.uint32(k1.value), numpy.uint32(k2.value)
+
