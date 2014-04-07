@@ -128,12 +128,24 @@ class timeBaseInfo(object):
         self.tEnd = tEnd    
 
 class parameterSetInfo(object):
-    def __init__(self, names, items, format, devsig):
+    def __init__(self, setName, names, items, format, devsig):
         object.__init__(self)
+        self.setName = setName
         self.names = names
         self.items = items
         self.format = format
         self.devsig = devsig
+
+    def __getitem__(self, i):
+        return parameterInfo(self.setName, self.names[i], self.items[i], self.format[i])
+
+class parameterInfo(object):
+    def __init__(self, setName, parName, items, format):
+        object.__init__(self)
+        self.setName = setName
+        self.parName = parName
+        self.items = items
+        self.format = format
 
 class shotfile(object):
     """ Class to load the data from the shotfile. """
@@ -588,4 +600,26 @@ class shotfile(object):
         names = []
         for i in xrange(info):
             names.append(rname[i*8:(i+1)*8].replace('\x00','').strip())
-        return parameterSetInfo(names, items, format, devsig)
+        return parameterSetInfo(name, names, items, format, devsig)
+
+    def getParameterInfo(self, setName, parName):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        error = ctypes.c_int32(0)
+        try:
+            set = ctypes.c_char_p(setName)
+        except TypeError:
+            set = ctypes.c_char_p(setName.encode())
+        lset = ctypes.c_uint64(len(setName))
+        try:
+            par = ctypes.c_char_p(parName)
+        except TypeError:
+            par = ctypes.c_char_p(parName.encode())
+        lpar = ctypes.c_uint64(len(parName))
+        item = ctypes.c_uint32(0)
+        format = ctypes.c_uint16(0)
+        __libddww__.dd_prinfo_(ctypes.byref(error), ctypes.byref(self.diaref), set, par, ctypes.byref(item), 
+                               ctypes.byref(format), lset, lpar)
+        getError(error.value)
+        return parameterInfo(setName, parName, numpy.uint32(item.value), numpy.uint16(format.value))
+
