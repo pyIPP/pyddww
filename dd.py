@@ -267,6 +267,18 @@ class shotfile(object):
             return numpy.int32(val.value)
 
     def __call__(self, name, dtype=None, tBegin=None, tEnd=None, calibrated=True):
+        """ Unified function to read data from a signal, signalgroup or timebase.
+        Keywords:
+           dtype: If desired the datatype of the output can be specified. If no dtype is specified,
+                  the data will be returned as float32 in case of calibrated data and in the format
+                  used in the shotfile in case of uncalibrated data.
+           tBegin: Sets the starting point from which time data will be read. Note here that for signals
+                   without a time dependence or in case of signal groups where the time index is not the
+                   first index this keyword has no effect.
+           tEnd: Similar to tBegin but this sets the time until which the data will be read.
+           calibrated: If True calibrated data together with the unit will be returned. If False the data
+                       as written in the shotfile will be returned.
+        """
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         objectType = self.getObjectValue(name, 'objtype')
@@ -288,9 +300,6 @@ class shotfile(object):
             return self.getTimeBase(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
         else:
             raise Exception('Unsupported object type %d for object %s' % (objectType, name))
-
-            
-
 
     def getSignal(self, name, dtype=None, tBegin=None, tEnd=None):
         """ Return uncalibrated signal. If dtype is specified the data is
@@ -348,6 +357,8 @@ class shotfile(object):
         except Exception:
             k1 = 1
             k2 = info.index[0]
+        if dtype not in [numpy.float32, numpy.float64]:
+            dtype=numpy.float32
         typ = ctypes.c_uint32(__type__[dtype])
         data = numpy.zeros(k2-k1+1, dtype=dtype)
         try:
@@ -486,6 +497,8 @@ class shotfile(object):
         error = ctypes.c_int32(0)
         lsigname = ctypes.c_uint64(len(name))
         k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        if dtype not in [numpy.float32, numpy.float64]:
+            dtype = numpy.float32
         data = numpy.zeros(k2-k1+1, dtype=dtype)
         lbuf = ctypes.c_uint32(data.size)
         k1 = ctypes.c_uint32(k1)
