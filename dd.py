@@ -27,7 +27,8 @@ __dataformat__ = {  1:numpy.uint8,
                     9:numpy.uint16,
                     13:numpy.int64,
                     14:numpy.uint32,
-                    15:numpy.uint64}
+                    15:numpy.uint64,
+                    1794:numpy.dtype('S8')}
 
 def getError(error):
     """ Check if an error/warning occured. """
@@ -127,6 +128,39 @@ class timeBaseInfo(object):
         self.tBegin = tBegin
         self.tEnd = tEnd    
 
+class parameterSetInfo(object):
+    def __init__(self, setName, names, items, format, devsig):
+        object.__init__(self)
+        self.setName = setName
+        self.names = names
+        self.items = items
+        self.format = format
+        self.devsig = devsig
+
+    def __getitem__(self, i):
+        return parameterInfo(self.setName, self.names[i], self.items[i], self.format[i])
+
+class parameterInfo(object):
+    def __init__(self, setName, parName, items, format):
+        object.__init__(self)
+        self.setName = setName
+        self.parName = parName
+        self.items = items
+        self.format = format
+
+class parameter(object):
+    def __init__(self, setName, parName, data, unit):
+        object.__init__(self)
+        self.setName = setName
+        self.name = parName
+        self.data = data
+        self.unit = unit
+
+class parameterSet(dict):
+    def __init__(self, setName):
+        dict.__init__(self)
+        self.name = setName
+
 class shotfile(object):
     """ Class to load the data from the shotfile. """
     def __init__(self, diagnostic=None, pulseNumber=None, experiment='AUGD', edition=0):
@@ -182,7 +216,7 @@ class shotfile(object):
     def getObjectName(self, objectNumber):
         """ Return name of object """
         if not self.status:
-            raise Exception('ddww: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         error = ctypes.c_int32(0)
         lname = ctypes.c_uint64(8)
         try:
@@ -198,7 +232,7 @@ class shotfile(object):
     def getObjectNames(self):
         """ Return list of all object names in the shotfile. """
         if not self.status:
-            raise Exception('ddww: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         output = {}
         counter = 0
         while True:
@@ -212,7 +246,7 @@ class shotfile(object):
     def getSignalInfo(self, name):
         """ Returns a signalInfo object containing the information of the signal name """
         if not self.status:
-            raise Exception('ddww::shotfile: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         error = ctypes.c_int32(0)
         lsig = ctypes.c_uint64(len(name))
         typ = ctypes.c_int32(0)
@@ -280,9 +314,13 @@ class shotfile(object):
                        as written in the shotfile will be returned.
         """
         if not self.status:
-            raise Exception('ddww::shotfile: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         objectType = self.getObjectValue(name, 'objtype')
-        if objectType==6:
+        if objectType==4:
+            raise Exception('Parameter Set not yet implemented.')
+        elif objectType==5:
+            raise Exception('Mapping function not yet implemented.')
+        elif objectType==6:
             if calibrated:
                 return self.getSignalGroupCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
             else:
@@ -298,6 +336,8 @@ class shotfile(object):
             if dtype not in [numpy.float32, numpy.float64]:
                 dtype=numpy.float32
             return self.getTimeBase(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+        elif objectType==13:
+            raise Exception('Area Base not yet implemented.')
         else:
             raise Exception('Unsupported object type %d for object %s' % (objectType, name))
 
@@ -306,7 +346,7 @@ class shotfile(object):
         converted accordingly, else the data is returned in the format used
         in the shotfile. """
         if not self.status:
-            raise Exception('ddww::shotfile: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
         try:
             tInfo = self.getTimeBaseInfo(name)
@@ -345,7 +385,7 @@ class shotfile(object):
         """ Return calibrated signal. If dtype is specified the data is
         converted accordingly, else the data is returned as numpy.float32. """
         if not self.status:
-            raise Exception('ddww::shotfile: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
         try:
             tInfo = self.getTimeBaseInfo(name)
@@ -384,7 +424,7 @@ class shotfile(object):
         converted accordingly, else the data is returned in the format used 
         in the shotfile. """
         if not self.status:
-            raise Exception('ddww::shotfile: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
         try:
             tInfo = self.getTimeBaseInfo(name)
@@ -427,7 +467,7 @@ class shotfile(object):
 
     def getSignalGroupCalibrated(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         if not self.status:
-            raise Exception('ddww::shotfile: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
         tInfo = self.getTimeBaseInfo(name)
         if tBegin==None:
@@ -467,7 +507,7 @@ class shotfile(object):
     def getTimeBaseInfo(self, name):
         """ Return information regarding timebase corresponding to name. """
         if not self.status:
-            raise Exception('ddww::shotfile: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         signalInfo = self.getSignalInfo(name)
         error = ctypes.c_int32(0)
         lsig = ctypes.c_uint64(len(name))
@@ -490,7 +530,7 @@ class shotfile(object):
     def getTimeBase(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         """ Return timebase corresponding to name. """
         if not self.status:
-            raise Exception('ddww::shotfile: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
         tInfo = self.getTimeBaseInfo(name)
         if tBegin==None:
@@ -521,7 +561,7 @@ class shotfile(object):
     def getTimeBaseIndices(self, name, tBegin, tEnd):
         """ Return time indices of name corresponding to tBegin and tEnd """
         if not self.status:
-            raise Exception('ddww::shotfile: Shotfile not open!')
+            raise Exception('Shotfile not open!')
         try:
             sigName = ctypes.c_char_p(name)
         except TypeError:
@@ -551,4 +591,91 @@ class shotfile(object):
                               ctypes.byref(time2), ctypes.byref(k1), ctypes.byref(k2), lname)
         getError(error.value)
         return numpy.uint32(k1.value), numpy.uint32(k2.value)
+
+    def getParameterSetInfo(self, name):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        error = ctypes.c_int32(0)
+        try:
+            parName = ctypes.c_char_p(name)
+        except TypeError:
+            parName = ctypes.c_char_p(name.encode())
+        lname = ctypes.c_uint64(len(name))
+        info = self.getObjectValue(name, 'items')
+        nrec = ctypes.c_int32(info)
+        rname = b' '*8*info
+        items = numpy.zeros(info, dtype=numpy.uint32)
+        format = numpy.zeros(info, dtype=numpy.uint16)
+        devsig = numpy.zeros(info, dtype=numpy.int32)
+        __libddww__.ddprinfo_(ctypes.byref(error), ctypes.byref(self.diaref), parName, ctypes.byref(nrec), 
+                              ctypes.c_char_p(rname), items.ctypes.data_as(ctypes.c_void_p), 
+                              format.ctypes.data_as(ctypes.c_void_p), devsig.ctypes.data_as(ctypes.c_void_p) ,lname)
+        getError(error.value)
+        names = []
+        for i in xrange(info):
+            names.append(rname[i*8:(i+1)*8].replace('\x00','').strip())
+        return parameterSetInfo(name, names, items, format, devsig)
+
+    def getParameterInfo(self, setName, parName):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        error = ctypes.c_int32(0)
+        try:
+            set = ctypes.c_char_p(setName)
+        except TypeError:
+            set = ctypes.c_char_p(setName.encode())
+        lset = ctypes.c_uint64(len(setName))
+        try:
+            par = ctypes.c_char_p(parName)
+        except TypeError:
+            par = ctypes.c_char_p(parName.encode())
+        lpar = ctypes.c_uint64(len(parName))
+        item = ctypes.c_uint32(0)
+        format = ctypes.c_uint16(0)
+        __libddww__.dd_prinfo_(ctypes.byref(error), ctypes.byref(self.diaref), set, par, ctypes.byref(item), 
+                               ctypes.byref(format), lset, lpar)
+        getError(error.value)
+        return parameterInfo(setName, parName, numpy.uint32(item.value), numpy.uint16(format.value))
+
+    def getParameter(self, setName, parName, dtype=None):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        info = self.getParameterInfo(setName, parName)
+        error = ctypes.c_int32(0)
+        try:
+            name = ctypes.c_char_p(setName)
+        except TypeError:
+            name = ctypes.c_char_p(setName.encode())
+        lname = ctypes.c_uint64(len(setName))
+        try:
+            pname = ctypes.c_char_p(parName)
+        except TypeError:
+            pname = ctypes.c_char_p(parName.encode())
+        lpname = ctypes.c_uint64(len(parName))
+        try:
+            typ = ctypes.c_uint32(__type__[dtype])
+            data = numpy.zeros(info.items, dtype=dtype)
+        except KeyError, Error:
+            typ = ctypes.c_uint32(0)
+            data = numpy.zeros(info.items, dtype=__dataformat__[info.format])
+        lbuf = ctypes.c_int32(info.items)
+        physunit = ctypes.c_int32(0)
+        __libddww__.ddparm_(ctypes.byref(error), ctypes.byref(self.diaref), name, pname, ctypes.byref(typ), ctypes.byref(lbuf), 
+                            data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(physunit), lname, lpname)
+        getError(error.value)
+        if data.size==1:
+            return parameter(setName, parName, data[0], getPhysicalDimension(physunit.value))
+        else:
+            return parameter(setName, parName, data, getPhysicalDimension(physunit.value))
+
+    def getParameterSet(self, setName, dtype=None):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        info = self.getParameterSetInfo(setName)
+        output = parameterSet(setName)
+        for name in info.names:
+            output[name] = self.getParameter(setName, name, dtype=dtype)
+        return output
+
+
 
