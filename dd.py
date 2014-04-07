@@ -346,6 +346,9 @@ class shotfile(object):
         if tEnd==None:
             tEnd = tInfo.tEnd
         k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        if info.index[0]!=tInfo.ntVal:
+            k1 = 1
+            k2 = info.index[0]
         size = info.size/info.index[0]*(k2-k1+1)
         print info.size, size
         try:
