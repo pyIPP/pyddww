@@ -2,6 +2,7 @@ import numpy
 import ctypes
 import os
 import copy
+import warnings
 
 __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' + os.environ['SYS'] + '/libddww8.so')
 
@@ -47,7 +48,7 @@ def getError(error):
         if isError:
             raise Exception(text.value.strip())
         else:
-            raise UserWarning(text.value.strip())
+            warnings.warn(text.value.strip(), RuntimeWarning)
 
 def getLastAUGShotNumber():
     """ Returns the current shotnumber of ASDEX Upgrade """
@@ -272,12 +273,16 @@ class shotfile(object):
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         info = self.getSignalInfo(name)
-        tInfo = self.getTimeBaseInfo(name)
-        if tBegin==None:
-            tBegin = tInfo.tBegin
-        if tEnd==None:
-            tEnd = tInfo.tEnd
-        k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        try:
+            tInfo = self.getTimeBaseInfo(name)
+            if tBegin==None:
+                tBegin = tInfo.tBegin
+            if tEnd==None:
+                tEnd = tInfo.tEnd
+            k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        except Exception:
+            k1 = 1
+            k2 = info.index[0]
         try:
             typ = ctypes.c_uint32(__type__[dtype])
             data = numpy.zeros(k2-k1+1, dtype=dtype)
@@ -307,12 +312,16 @@ class shotfile(object):
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         info = self.getSignalInfo(name)
-        tInfo = self.getTimeBaseInfo(name)
-        if tBegin==None:
-            tBegin = tInfo.tBegin
-        if tEnd==None:
-            tEnd = tInfo.tEnd
-        k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        try:
+            tInfo = self.getTimeBaseInfo(name)
+            if tBegin==None:
+                tBegin = tInfo.tBegin
+            if tEnd==None:
+                tEnd = tInfo.tEnd
+            k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        except Exception:
+            k1 = 1
+            k2 = info.index[0]
         typ = ctypes.c_uint32(__type__[dtype])
         data = numpy.zeros(k2-k1+1, dtype=dtype)
         try:
@@ -371,12 +380,10 @@ class shotfile(object):
         __libddww__.ddsgroup_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), 
                               ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), 
                               ctypes.byref(leng), lname)
-        try:
-            getError(error.value)
-        finally:
-            index1 = numpy.uint32(k2.value-k1.value+1)
-            index = numpy.append(index1, info.index[1:])
-            return data.reshape(tuple(index[:info.nDim]), order='F')
+        getError(error.value)
+        index1 = numpy.uint32(k2.value-k1.value+1)
+        index = numpy.append(index1, info.index[1:])
+        return data.reshape(tuple(index[:info.nDim]), order='F')
 
     def getTimeBaseInfo(self, name):
         """ Return information regarding timebase corresponding to name. """
