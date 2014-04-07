@@ -266,6 +266,33 @@ class shotfile(object):
         except Exception, Error:
             return numpy.int32(val.value)
 
+    def __call__(self, name, dtype=None, tBegin=None, tEnd=None, calibrated=True):
+        if not self.status:
+            raise Exception('ddww::shotfile: Shotfile not open!')
+        objectType = self.getObjectValue(name, 'objtype')
+        print objectType
+        if objectType==6:
+            if calibrated:
+                raise Exception('getSignalGroupCalibrated not yet implemented')
+            else:
+                return self.getSignalGroup(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+        elif objectType==7:
+            if calibrated:
+                if dtype not in [numpy.float32, numpy.float64]:
+                    dtype=numpy.float32
+                return self.getSignalCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+            else:
+                return self.getSignal(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+        elif objectType==8:
+            if dtype not in [numpy.float32, numpy.float64]:
+                dtype=numpy.float32
+            return self.getTimeBase(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+        else:
+            raise Exception('Unsupported object type %d for object %s' % (objectType, name))
+
+            
+
+
     def getSignal(self, name, dtype=None, tBegin=None, tEnd=None):
         """ Return uncalibrated signal. If dtype is specified the data is
         converted accordingly, else the data is returned in the format used
