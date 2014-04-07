@@ -270,10 +270,9 @@ class shotfile(object):
         if not self.status:
             raise Exception('ddww::shotfile: Shotfile not open!')
         objectType = self.getObjectValue(name, 'objtype')
-        print objectType
         if objectType==6:
             if calibrated:
-                raise Exception('getSignalGroupCalibrated not yet implemented')
+                return self.getSignalGroupCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
             else:
                 return self.getSignalGroup(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
         elif objectType==7:
@@ -386,7 +385,6 @@ class shotfile(object):
             k1 = 1
             k2 = info.index[0]
         size = info.size/info.index[0]*(k2-k1+1)
-        print info.size, size
         try:
             typ = ctypes.c_uint32(__type__[dtype])
             data = numpy.zeros(size, dtype=dtype)
@@ -411,6 +409,45 @@ class shotfile(object):
         index1 = numpy.uint32(k2.value-k1.value+1)
         index = numpy.append(index1, info.index[1:])
         return data.reshape(tuple(index[:info.nDim]), order='F')
+
+    def getSignalGroupCalibrated(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
+        if not self.status:
+            raise Exception('ddww::shotfile: Shotfile not open!')
+        info = self.getSignalInfo(name)
+        tInfo = self.getTimeBaseInfo(name)
+        if tBegin==None:
+            tBegin = tInfo.tBegin
+        if tEnd==None:
+            tEnd = tInfo.tEnd
+        k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        if info.index[0]!=tInfo.ntVal:
+            k1 = 1
+            k2 = info.index[0]
+        size = info.size/info.index[0]*(k2-k1+1)
+        if dtype not in [numpy.float32, numpy.float64]:
+            dtype=numpy.float32
+        typ = ctypes.c_uint32(__type__[dtype])
+        data = numpy.zeros(size, dtype=dtype)
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        error = ctypes.c_int32(0)
+        leng = ctypes.c_uint32(0)
+        lbuf = ctypes.c_uint32(k2-k1+1)
+        k1 = ctypes.c_uint32(k1)
+        k2 = ctypes.c_uint32(k2)
+        ncal = ctypes.c_int32(0)
+        lname = ctypes.c_uint64(len(name))
+        physdim = b' '*8
+        __libddww__.ddcsgrp_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2), 
+                             ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng), 
+                             ctypes.byref(ncal), ctypes.c_char_p(physdim), lname, ctypes.c_uint64(8))
+        getError(error.value)
+        index1 = numpy.uint32(k2.value-k1.value+1)
+        index = numpy.append(index1, info.index[1:])
+        return data.reshape(tuple(index[:info.nDim]), order='F'), physdim.replace('\x00', '').strip()
+
 
     def getTimeBaseInfo(self, name):
         """ Return information regarding timebase corresponding to name. """
