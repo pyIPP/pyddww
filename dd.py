@@ -317,7 +317,7 @@ class shotfile(object):
             raise Exception('Shotfile not open!')
         objectType = self.getObjectValue(name, 'objtype')
         if objectType==4:
-            raise Exception('Parameter Set not yet implemented.')
+            return self.getParameterSet(name, dtype=dtype)
         elif objectType==5:
             raise Exception('Mapping function not yet implemented.')
         elif objectType==6:
