@@ -156,6 +156,11 @@ class parameter(object):
         self.data = data
         self.unit = unit
 
+class parameterSet(dict):
+    def __init__(self, setName):
+        dict.__init__(self)
+        self.name = setName
+
 class shotfile(object):
     """ Class to load the data from the shotfile. """
     def __init__(self, diagnostic=None, pulseNumber=None, experiment='AUGD', edition=0):
@@ -662,4 +667,15 @@ class shotfile(object):
             return parameter(setName, parName, data[0], getPhysicalDimension(physunit.value))
         else:
             return parameter(setName, parName, data, getPhysicalDimension(physunit.value))
+
+    def getParameterSet(self, setName, dtype=None):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        info = self.getParameterSetInfo(setName)
+        output = parameterSet(setName)
+        for name in info.names:
+            output[name] = self.getParameter(setName, name, dtype=dtype)
+        return output
+
+
 
