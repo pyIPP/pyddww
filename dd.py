@@ -27,7 +27,8 @@ __dataformat__ = {  1:numpy.uint8,
                     9:numpy.uint16,
                     13:numpy.int64,
                     14:numpy.uint32,
-                    15:numpy.uint64}
+                    15:numpy.uint64,
+                    1794:numpy.dtype('S8')}
 
 def getError(error):
     """ Check if an error/warning occured. """
@@ -146,6 +147,14 @@ class parameterInfo(object):
         self.parName = parName
         self.items = items
         self.format = format
+
+class parameter(object):
+    def __init__(self, setName, parName, data, unit):
+        object.__init__(self)
+        self.setName = setName
+        self.name = parName
+        self.data = data
+        self.unit = unit
 
 class shotfile(object):
     """ Class to load the data from the shotfile. """
@@ -622,4 +631,35 @@ class shotfile(object):
                                ctypes.byref(format), lset, lpar)
         getError(error.value)
         return parameterInfo(setName, parName, numpy.uint32(item.value), numpy.uint16(format.value))
+
+    def getParameter(self, setName, parName, dtype=None):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        info = self.getParameterInfo(setName, parName)
+        error = ctypes.c_int32(0)
+        try:
+            name = ctypes.c_char_p(setName)
+        except TypeError:
+            name = ctypes.c_char_p(setName.encode())
+        lname = ctypes.c_uint64(len(setName))
+        try:
+            pname = ctypes.c_char_p(parName)
+        except TypeError:
+            pname = ctypes.c_char_p(parName.encode())
+        lpname = ctypes.c_uint64(len(parName))
+        try:
+            typ = ctypes.c_uint32(__type__[dtype])
+            data = numpy.zeros(info.items, dtype=dtype)
+        except KeyError, Error:
+            typ = ctypes.c_uint32(0)
+            data = numpy.zeros(info.items, dtype=__dataformat__[info.format])
+        lbuf = ctypes.c_int32(info.items)
+        physunit = ctypes.c_int32(0)
+        __libddww__.ddparm_(ctypes.byref(error), ctypes.byref(self.diaref), name, pname, ctypes.byref(typ), ctypes.byref(lbuf), 
+                            data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(physunit), lname, lpname)
+        getError(error.value)
+        if data.size==1:
+            return parameter(setName, parName, data[0], getPhysicalDimension(physunit.value))
+        else:
+            return parameter(setName, parName, data, getPhysicalDimension(physunit.value))
 
