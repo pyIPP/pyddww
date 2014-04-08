@@ -677,5 +677,21 @@ class shotfile(object):
             output[name] = self.getParameter(setName, name, dtype=dtype)
         return output
 
-
+    def getList(self, name):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        try:
+            nam = ctypes.c_char_p(name)
+        except TypeError:
+            nam = ctypes.c_char_p(name.encode())
+        lname = ctypes.c_uint64(len(name))
+        error = ctypes.c_int32(0)
+        listlen = ctypes.c_int32(256)
+        nlist = numpy.zeros(256, dtype=numpy.dtype('S9'))
+        __libddww__.ddlnames_(ctypes.byref(error), ctypes.byref(self.diaref), nam, ctypes.byref(listlen), 
+                              nlist.ctypes.data_as(ctypes.c_void_p), lname, ctypes.c_uint64(9*256))
+        output = []
+        for i in xrange(listlen.value):
+            output.append(nlist[i].replace('\x00','').strip())
+        return output
 
