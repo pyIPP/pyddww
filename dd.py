@@ -169,6 +169,59 @@ class parameterSet(dict):
         dict.__init__(self)
         self.name = setName
 
+class signal(object):
+    def __init__(self, name, data, time=None, unit=''):
+        object.__init__(self)
+        self.name = name
+        self.data = data
+        self.time = time
+        self.unit = ''
+
+    def __call__(self, tBegin, tEnd):
+        if self.time==None:
+            raise Exception('Signal is not time dependent.')
+        index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
+        return signal(self.name, self.data[index], self.time[index], self.unit)
+
+    def max(self):
+        return numpy.nanmax(self.data)
+
+    def min(self):
+        return numpy.nanmin(self.data)
+
+    def median(self):
+        return numpy.median(self.data)
+
+    def mean(self):
+        return numpy.mean(self.data)
+
+class signalGroup(object):
+    def __init__(self, name, data, time=None, unit=''):
+        object.__init__(self)
+        self.name = name
+        self.data = data
+        self.time = time
+        self.unit = unit
+
+    def __call__(self, tBegin, tEnd):
+        if self.time==None:
+            raise Exception('SignalGroup is not time dependent.')
+        index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
+        return signal(self.name, self.data[index], self.time[index], self.unit)
+
+    def max(self, axis=None):
+        return numpy.nanmax(self.data, axis=axis)
+    
+    def min(self, axis=None):
+        return numpy.nanmin(self.data, axis=axis)
+
+    def median(self, axis=None):
+        return numpy.median(self.data, axis=axis)
+
+    def mean(self, axis=None):
+        return numpy.mean(self.data, axis=axis)
+        
+
 class shotfile(object):
     """ Class to load the data from the shotfile. """
     def __init__(self, diagnostic=None, pulseNumber=None, experiment='AUGD', edition=0):
@@ -330,16 +383,28 @@ class shotfile(object):
             raise Exception('Mapping function not yet implemented.')
         elif objectType==6:
             if calibrated:
-                return self.getSignalGroupCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                data, unit = self.getSignalGroupCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
             else:
-                return self.getSignalGroup(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                data = self.getSignalGroup(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                unit = ''
+            try:
+                time = self.getTimeBase(name, tBegin=tBegin, tEnd=tEnd)
+            except Exception:
+                time = None
+            return signalGroup(name, data, time, unit)
         elif objectType==7:
             if calibrated:
                 if dtype not in [numpy.float32, numpy.float64]:
                     dtype=numpy.float32
-                return self.getSignalCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                data, unit = self.getSignalCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
             else:
-                return self.getSignal(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                data = self.getSignal(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                unit = ''
+            try:
+                time = self.getTimeBase(name, tBegin=tBegin, tEnd=tEnd)
+            except Exception:
+                time = None
+            return signal(name, data, time=time, unit=unit)
         elif objectType==8:
             if dtype not in [numpy.float32, numpy.float64]:
                 dtype=numpy.float32
@@ -492,12 +557,12 @@ class shotfile(object):
                 tBegin = tInfo.tBegin
             if tEnd==None:
                 tEnd = tInfo.tEnd
-            if info.index[0]==info.ntVal:
+            if info.index[0]==tInfo.ntVal:
                 k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
             else:
                 k1 = 1
                 k2 = info.index[0]
-        except Exception:
+        except Exception, Error:
             k1 = 1
             k2 = info.index[0]
         size = info.size/info.index[0]*(k2-k1+1)
@@ -739,7 +804,7 @@ class shotfile(object):
         return mappingInfo(name, devname.replace('\x00', ''), numpy.int32(channel.value))
 
     def GetSignal(self, name, cal=False):
-        warnings.warn('GetSignal will be removed in the future.')
+        warnings.warn('GetSignal will be removed in the future.', DeprecationWarning)
         if not self.status:
             raise Exception('Shotfile not open!')
         objectType = self.getObjectValue(name, 'objtype')
