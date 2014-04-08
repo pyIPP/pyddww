@@ -361,7 +361,11 @@ class shotfile(object):
                 tBegin = tInfo.tBegin
             if tEnd==None:
                 tEnd = tInfo.tEnd
-            k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+            if tInfo.ntVal==info.index[0]:
+                k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+            else:
+                k1 = 1
+                k2 = info.index[0]
         except Exception:
             k1 = 1
             k2 = info.index[0]
@@ -400,7 +404,11 @@ class shotfile(object):
                 tBegin = tInfo.tBegin
             if tEnd==None:
                 tEnd = tInfo.tEnd
-            k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+            if tInfo.ntVal==info.index[0]:
+                k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+            else:
+                k1 = 1
+                k2 = info.index[0]
         except Exception:
             k1 = 1
             k2 = info.index[0]
@@ -439,8 +447,9 @@ class shotfile(object):
                 tBegin = tInfo.tBegin
             if tEnd==None:
                 tEnd = tInfo.tEnd
-            k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
-            if info.index[0]!=tInfo.ntVal:
+            if info.index[0]==tInfo.ntVal:
+                k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+            else:
                 k1 = 1
                 k2 = info.index[0]
         except Exception:
@@ -476,13 +485,18 @@ class shotfile(object):
         if not self.status:
             raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
-        tInfo = self.getTimeBaseInfo(name)
-        if tBegin==None:
-            tBegin = tInfo.tBegin
-        if tEnd==None:
-            tEnd = tInfo.tEnd
-        k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
-        if info.index[0]!=tInfo.ntVal:
+        try:
+            tInfo = self.getTimeBaseInfo(name)
+            if tBegin==None:
+                tBegin = tInfo.tBegin
+            if tEnd==None:
+                tEnd = tInfo.tEnd
+            if info.index[0]==info.ntVal:
+                k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+            else:
+                k1 = 1
+                k2 = info.index[0]
+        except Exception:
             k1 = 1
             k2 = info.index[0]
         size = info.size/info.index[0]*(k2-k1+1)
