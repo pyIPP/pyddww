@@ -569,13 +569,14 @@ class shotfile(object):
             k1 = 1
             k2 = info.index[0]
         size = info.size/info.index[0]*(k2-k1+1)
+        index = numpy.append(k2-k1+1, info.index[1:])
         try:
             typ = ctypes.c_uint32(__type__[dtype])
-            data = numpy.zeros(size, dtype=dtype)
+            data = numpy.zeros(index[:info.nDim], dtype=dtype, order='F')
         except KeyError, Error:
             dataformat = self.getObjectValue(name, 'dataformat')
             typ = ctypes.c_uint32(0)
-            data = numpy.zeros(size, dtype=__dataformat__[dataformat])
+            data = numpy.zeros(index[:info.nDim], dtype=__dataformat__[dataformat], order='F')
         try:
             sigName = ctypes.c_char_p(name)
         except TypeError:
@@ -590,9 +591,7 @@ class shotfile(object):
                               ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), 
                               ctypes.byref(leng), lname)
         getError(error.value)
-        index1 = numpy.uint32(k2.value-k1.value+1)
-        index = numpy.append(index1, info.index[1:])
-        return data.reshape(tuple(index[:info.nDim]), order='F')
+        return data
 
     def getSignalGroupCalibrated(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         if not self.status:
@@ -612,11 +611,11 @@ class shotfile(object):
         except Exception, Error:
             k1 = 1
             k2 = info.index[0]
-        size = info.size/info.index[0]*(k2-k1+1)
+        index = numpy.append(k2-k1+1, info.index[1:])
         if dtype not in [numpy.float32, numpy.float64]:
             dtype=numpy.float32
         typ = ctypes.c_uint32(__type__[dtype])
-        data = numpy.zeros(size, dtype=dtype)
+        data = numpy.zeros(index[:info.nDim], dtype=dtype, order='F')
         try:
             sigName = ctypes.c_char_p(name)
         except TypeError:
@@ -633,9 +632,7 @@ class shotfile(object):
                              ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng), 
                              ctypes.byref(ncal), ctypes.c_char_p(physdim), lname, ctypes.c_uint64(8))
         getError(error.value)
-        index1 = numpy.uint32(k2.value-k1.value+1)
-        index = numpy.append(index1, info.index[1:])
-        return data.reshape(tuple(index[:info.nDim]), order='F'), physdim.replace('\x00', '').strip()
+        return data, physdim.replace('\x00', '').strip()
 
 
     def getTimeBaseInfo(self, name):
@@ -917,7 +914,7 @@ class shotfile(object):
         if dtype not in [numpy.float32, numpy.float64]:
             dtype = numpy.float32
         typ = ctypes.c_uint32(__type__[dtype])
-        data = numpy.zeros(index.prod(), dtype=dtype)
+        data = numpy.zeros(index, dtype=dtype, order='F')
         albuf = ctypes.c_uint32(aInfo.sizes[0])
         length = ctypes.c_uint32(0)
         k1 = ctypes.c_uint32(k1)
@@ -926,7 +923,7 @@ class shotfile(object):
                               ctypes.byref(typ), ctypes.byref(albuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(length), 
                               lname)
         getError(error.value)
-        return numpy.reshape(data, index, order='F')
+        return data
 
     def getQualifierInfo(self, name):
         if not self.status:
@@ -955,13 +952,13 @@ class shotfile(object):
         except TypeError:
             sigName = ctypes.c_char_p(name.encode())
         lname = ctypes.c_uint64(len(name))
-        data = numpy.zeros(info.size, dtype=numpy.int32)
+        data = numpy.zeros(info.indices[:info.nDim], dtype=numpy.int32, order='F')
         lbuf = ctypes.c_int32(info.size)
         status = ctypes.c_int32(0)
         __libddww__.ddqget_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(status), 
                             ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), lname)
         getError(error.value)
-        return qualifier(name, numpy.int32(status.value), numpy.reshape(data, info.indices[:info.nDim], order='F'))
+        return qualifier(name, numpy.int32(status.value), data)
 
     def GetInfo(self, name):
         """ Returns information about the specified signal."""
