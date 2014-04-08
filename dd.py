@@ -157,6 +157,25 @@ class qualifierInfo(object):
         self.indices = indices
         self.maxSection = maxSection
 
+    def nDim():
+        def fget(self):
+            return self.indices[self.indices>1].size
+        return locals()
+    nDim = property(**nDim())
+
+    def size():
+        def fget(self):
+            return self.indices[self.indices>1].prod()
+        return locals()
+    size = property(**size())
+
+class qualifier(object):
+    def __init__(self, name, status, data):
+        object.__init__(self)
+        self.name = name
+        self.status = status
+        self.data = data
+
 class mappingInfo(object):
     def __init__(self, name, device, channel):
         object.__init__(self)
@@ -911,7 +930,7 @@ class shotfile(object):
 
     def getQualifierInfo(self, name):
         if not self.status:
-            raise Exception('Shotfile not open')
+            raise Exception('Shotfile not open!')
         error = ctypes.c_int32(0)
         try:
             sigName = ctypes.c_char_p(name)
@@ -925,6 +944,24 @@ class shotfile(object):
                              indices.ctypes.data_as(ctypes.c_void_p), ctypes.byref(maxsection), lname)
         getError(error.value)
         return qualifierInfo(name, numpy.int32(exist.value), indices, numpy.uint32(maxsection.value))
+
+    def getQualifier(self, name):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        error = ctypes.c_int32(0)
+        info = self.getQualifierInfo(name)
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        lname = ctypes.c_uint64(len(name))
+        data = numpy.zeros(info.size, dtype=numpy.int32)
+        lbuf = ctypes.c_int32(info.size)
+        status = ctypes.c_int32(0)
+        __libddww__.ddqget_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(status), 
+                            ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), lname)
+        getError(error.value)
+        return qualifier(name, numpy.int32(status.value), numpy.reshape(data, info.indices[:info.nDim], order='F'))
 
     def GetInfo(self, name):
         """ Returns information about the specified signal."""
