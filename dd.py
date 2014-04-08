@@ -3,6 +3,7 @@ import ctypes
 import os
 import copy
 import warnings
+import getpass
 
 __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' + os.environ['SYS'] + '/libddww8.so')
 
@@ -754,3 +755,18 @@ class shotfile(object):
                 return self.getSignal(name)
         else:
             raise Exception('Unsupported object type: %d' % objectType)
+
+
+# to not annoy users that don't even use this library with e-mails,
+# collect usernames of users in /afs/ipp/u/abock/pub/pyUsage/dd/
+def touch(fname, times=None):
+    fhandle = file(fname, 'a')
+    try:
+        os.utime(fname, times)
+    finally:
+        fhandle.close()
+touch('/afs/ipp/u/abock/pub/pyUsage/dd/%s'%getpass.getuser())
+
+
+
+
