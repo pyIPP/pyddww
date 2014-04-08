@@ -149,6 +149,14 @@ class parameterInfo(object):
         self.items = items
         self.format = format
 
+class qualifierInfo(object):
+    def __init__(self, name, exists, indices, maxSection):
+        object.__init__(self)
+        self.name = name
+        self.exists = exists
+        self.indices = indices
+        self.maxSection = maxSection
+
 class mappingInfo(object):
     def __init__(self, name, device, channel):
         object.__init__(self)
@@ -900,6 +908,23 @@ class shotfile(object):
                               lname)
         getError(error.value)
         return numpy.reshape(data, index, order='F')
+
+    def getQualifierInfo(self, name):
+        if not self.status:
+            raise Exception('Shotfile not open')
+        error = ctypes.c_int32(0)
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        lname = ctypes.c_uint64(len(name))
+        exist = ctypes.c_int32(0)
+        indices = numpy.zeros(3, dtype=numpy.int32)
+        maxsection = ctypes.c_uint32(0)
+        __libddww__.ddqinfo_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(exist), 
+                             indices.ctypes.data_as(ctypes.c_void_p), ctypes.byref(maxsection), lname)
+        getError(error.value)
+        return qualifierInfo(name, numpy.int32(exist.value), indices, numpy.uint32(maxsection.value))
 
     def GetInfo(self, name):
         """ Returns information about the specified signal."""
