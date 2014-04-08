@@ -22,6 +22,34 @@ class testdd(unittest.TestCase):
         self.assertFalse(sf.status)
         del sf
 
+    def test_getSignal(self):
+        sf = dd.shotfile()
+        sf.open('DCN', 29708)
+        self.assertEqual(sf.getSignal('H-1').dtype, numpy.int16)
+        self.assertEqual(sf.getSignal('H-1', dtype=numpy.float32).dtype, numpy.float32)
+        self.assertEqual(sf.getSignal('H-1', dtype=numpy.float64).dtype, numpy.float64)
+        self.assertEqual(sf.getSignal('H-1').size, 100000)
+        self.assertEqual(sf.getSignal('H-1', dtype=numpy.float32).size, 100000)
+        self.assertEqual(sf.getSignal('H-1', dtype=numpy.float64).size, 100000)
+        del sf
+
+    def test_getSignalCalibrated(self):
+        sf = dd.shotfile()
+        sf.open('DCN', 29708)
+        data, unit = sf.getSignalCalibrated('H-1')
+        self.assertEqual(data.dtype, numpy.float32)
+        self.assertEqual(data.size, 100000)
+        self.assertEqual(unit, '1/m^3')
+        data, unit = sf.getSignalCalibrated('H-1', dtype=numpy.float32)
+        self.assertEqual(data.dtype, numpy.float32)
+        self.assertEqual(data.size, 100000)
+        self.assertEqual(unit, '1/m^3')
+        data, unit = sf.getSignalCalibrated('H-1', dtype=numpy.float64)
+        self.assertEqual(data.dtype, numpy.float64)
+        self.assertEqual(data.size, 100000)
+        self.assertEqual(unit, '1/m^3')
+        del sf
+
     def test_tb_calib(self):
 # a=Integer TB in [ns], b="calibrated" in float,[s]
         sf = dd.shotfile()
