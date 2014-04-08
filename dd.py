@@ -219,7 +219,27 @@ class signalGroup(object):
 
     def mean(self, axis=None):
         return numpy.mean(self.data, axis=axis)
-        
+
+class areaBaseInfo(object):
+    def __init__(self, name, sizes, dimensions, index):
+        object.__init__(self)
+        self.name = name
+        self.sizes = sizes
+        self.dimensions = dimensions
+        self.index = index
+
+    def nDim():
+        def fget(self):
+            return self.sizes[self.sizes>1].size
+        return locals()
+    nDim = property(**nDim())
+
+    def size():
+        def fget(self):
+            return self.sizes[self.sizes>1].prod()
+        return locals()
+    size = property(**size())
+
 
 class shotfile(object):
     """ Class to load the data from the shotfile. """
@@ -819,3 +839,64 @@ class shotfile(object):
                 return self.getSignal(name)
         else:
             raise Exception('Unsupported object type: %d' % objectType)
+
+    def getAreaBaseInfo(self, name):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        error = ctypes.c_int32(0)
+        sizes = numpy.zeros(3, dtype=numpy.uint32)
+        adim = numpy.zeros(3, dtype=numpy.uint32)
+        index = ctypes.c_int32(0)
+        lname = ctypes.c_uint64(len(name))
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        lname = ctypes.c_uint64(len(name))
+        __libddww__.ddainfo_(ctypes.byref(error) , ctypes.byref(self.diaref), sigName , sizes.ctypes.data_as(ctypes.c_void_p), 
+                             adim.ctypes.data_as(ctypes.c_void_p), ctypes.byref(index) , lname)
+        getError(error.value)
+        return areaBaseInfo(name, sizes, adim, numpy.int32(index.value))
+
+    def getAreaBase(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
+        if not self.status:
+            raise Exception('Shotfile not open')
+        info = self.getSignalInfo(name)
+        aInfo = self.getAreaBaseInfo(name)
+        error = ctypes.c_int32(0)
+        if aInfo.index==0:
+            index = aInfo.sizes[:aInfo.nDim]
+            k1 = 1
+            k2 = index[0]
+        else:
+            tInfo = self.getTimeBaseInfo(name)
+            if tBegin==None:
+                tBegin = tInfo.tBegin
+            if tEnd==None:
+                tEnd = tInfo.tEnd
+            k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+            if aInfo.index==1:
+                index = numpy.append(k2-k1+1, aInfo.sizes[:aInfo.nDim])
+            elif aInfo.index in [2,3]:
+                index = numpy.append(aInfo.sizes[:aInfo.nDim], k2-k1+1)
+            else:
+                raise Exception('Invalid area base index.')
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        lname = ctypes.c_uint64(len(name))
+        if dtype not in [numpy.float32, numpy.float64]:
+            dtype = numpy.float32
+        typ = ctypes.c_uint32(__type__[dtype])
+        data = numpy.zeros(index.prod(), dtype=dtype)
+        albuf = ctypes.c_uint32(aInfo.sizes[0])
+        length = ctypes.c_uint32(0)
+        k1 = ctypes.c_uint32(k1)
+        k2 = ctypes.c_uint32(k2)
+        __libddww__.ddagroup_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2),
+                              ctypes.byref(typ), ctypes.byref(albuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(length), 
+                              lname)
+        getError(error.value)
+        return numpy.reshape(data, index, order='F')
+
