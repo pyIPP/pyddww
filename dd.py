@@ -822,6 +822,177 @@ class shotfile(object):
             raise Exception('Unsupported object type: %d' % objectType)
 
 
+
+
+    def GetInfo(self, name):
+        """ Returns information about the specified signal."""
+        if self.__status:
+
+            output = dd_info()
+            rel = self.GetRelations(name)
+            output.error   = rel.error
+            output.tname   = None
+            output.aname   = None
+            output.tlen    = None
+            output.index   = None
+            output.units   = None
+            output.address = None
+            output.bytlen  = None
+            output.level   = None
+            output.status  = None
+            output.error   = None
+            output.ind     = None
+            if rel.error == 0:
+                jtime = None
+                jarea = None
+                for jid, id in enumerate(rel.typ):
+                    if id == 8:
+                        jtime = jid
+                        output.tname = rel.txt[jid]
+                    if id == 13:
+                        jarea = jid
+                        output.aname = rel.txt[jid]
+
+                head = self.GetObjectHeader(name)
+                buf_str = ''
+                for hb in head.buffer:
+                    buf_str += str(hb)+' '
+                sfprint('Header buffer %s' %buf_str, self.error_level, 3)
+                output.error = head.error
+                if head.error == 0:
+                    output.buf     = head.buffer
+                    output.objtyp  = output.buf[0]
+                    output.level   = output.buf[1]
+                    output.status  = output.buf[2]
+                    output.error   = output.buf[3]
+                    output.address = output.buf[12]
+                    output.bytlen  = output.buf[13]
+                    if output.objtyp in (6, 7, 8, 13):
+                        output.units   = unit_d[output.buf[15]]
+                        output.estatus = output.buf[17]
+                        output.fmt     = output.buf[14]
+                        if output.objtyp in (6, 7):
+                            output.index = output.buf[1]
+                            dims       = np.array(output.buf[18:22][::-1], dtype=np.int32)
+                            output.ind = np.array(dims[dims > 0])
+
+                        if output.objtyp == 8: # If 'name' is a TB
+                            output.tlen = output.buf[21] # = dims[0]
+                            output.tfmt = output.buf[14]
+                        else:
+                            tlen1 = -1
+                            if (output.index == 1) or (output.objtyp == 7):
+                                tlen1 = dims[0]
+                            elif output.index in (2,3):
+                                tlen1 = dims[1]
+                            sfprint('tlen1 = %d' %tlen1, self.error_level, 2)
+                            if jtime != None:
+                                thead = self.GetObjectHeader(rel.txt[jtime])
+                                tbuf = thead.buffer
+                                output.tlen = tbuf[21]
+                                output.tfmt = tbuf[14]
+                                sfprint('tlen = %d' %output.tlen, self.error_level, 2)
+# Check consistency with TB length
+                                if output.tlen != tlen1 and tlen1 != -1:
+                                    output.tlen = -1
+                            else:
+                                sfprint('No TB found for %s %s' %(obj_d[output.objtyp], name), self.error_level, 2)
+
+                        if output.objtyp == 13: # If 'name' is an AB
+                            output.atlen = output.buf[21]
+                            output.afmt  = output.buf[14]
+                            sizes = np.array(output.buf[18:21], dtype = np.int32)
+                            output.sizes = sizes[sizes > 0]
+                        else:
+# Beware: other than in DDAINFO2, here 'sizes' can have less than 
+# 3 dims, as the 0-sized are removed. Usually (always?) it has 1 dim.
+                            if jarea != None:
+                                ahead = self.GetObjectHeader(rel.txt[jarea])
+                                abuf = ahead.buffer
+                                output.atlen = abuf[21] # #time points of AB
+                                output.afmt  = abuf[14]
+                                sizes = np.array(abuf[18:21], dtype = np.int32)
+                                output.sizes = sizes[sizes > 0]
+
+            return output
+        return None
+
+
+    def GetParameterInfo(self, set_name, par_name):
+        """ Returns information about the parameter 'par_name' of the parameter set 'set_name'."""
+        sfprint('Fetching parameter %s from PS %s' %(par_name,set_name), self.error_level, 3)
+        if self.__status:
+            output = dd_info()
+            error   = ct.c_int32(0)
+            _error  = ct.byref(error)
+            _diaref = ct.byref(self.__diaref)
+            pset    = ct.c_char_p(set_name)
+            par     = ct.c_char_p(par_name)
+            item    = ct.c_uint32(0)
+            _item   = ct.byref(item)
+            format  = ct.c_uint16(0)
+            _format = ct.byref(format)
+            lpar = ct.c_uint64(len(par_name))
+            lset = ct.c_uint64(len(set_name))
+
+            result = libddww.dd_prinfo_(_error, _diaref, pset, par, _item, _format, lset, lpar)
+
+            self.GetError(error)
+            output.error = error.value
+            if error.value == 0:
+                output.item = item.value
+                output.format = format.value
+            return output
+        return None
+
+
+    def GetParameter(self, set_name, par_name):
+        """ Returns the value of the parameter 'par_name' of the parameter set 'set_name'. """
+        if self.__status:
+            info = self.GetParameterInfo(set_name, par_name)
+            if info.error == 0:
+                error     = ct.c_int32(0)
+                _error    = ct.byref(error)
+                _diaref   = ct.byref(self.__diaref)
+                setn      = ct.c_char_p(set_name)
+                lset      = ct.c_uint64(len(set_name))
+                par       = ct.c_char_p(par_name)
+                lpar      = ct.c_uint64(len(par_name))
+                physunit  = ct.c_int32(0)
+                _physunit = ct.byref(physunit)
+# Characters
+                if info.format in (2, 1794, 3842, 7938, 12034, 16130, 18178):
+                    ndim = fmt2len[info.format]
+                    nlen = ndim*info.item
+                    typin  = ct.c_int32(6)
+                    lbuf   = ct.c_uint32(nlen)
+                    buffer = ct.c_char_p('d'*nlen)
+                    _typin = ct.byref(typin)
+                    _lbuf  = ct.byref(lbuf)
+                    lndim  = ct.c_uint64(ndim)
+
+                    result = libddww.ddparm_(_error, _diaref, setn, par, _typin, \
+                                             _lbuf, buffer, _physunit, lset, lpar, lndim)
+
+                    self.GetError(error)
+                    a=[]
+                    for j in range(info.item):
+                        a.append(buffer.value[j*ndim:(j+1)*ndim])
+                    return np.array(a)
+                else:
+                    typin = ct.c_int32(fmt2type[info.format])
+                    lbuf = ct.c_uint32(info.item)
+                    buffer = (fmt2ct[info.format]*info.item)()
+                    _typin = ct.byref(typin)
+                    _lbuf = ct.byref(lbuf)
+                    _buffer = ct.byref(buffer)
+                    result = libddww.ddparm_(_error, _diaref, setn, par, _typin, \
+                                             _lbuf, _buffer, _physunit, lset, lpar)
+                    return np.frombuffer(buffer, dtype=np.dtype(buffer))[0]
+                self.units = unit_d[_physunit.value]
+        return None
+
+
 # to not annoy users that don't even use this library with e-mails,
 # collect usernames of users in /afs/ipp/u/abock/pub/pyUsage/dd/
 def touch(fname, times=None):
@@ -831,7 +1002,3 @@ def touch(fname, times=None):
     finally:
         fhandle.close()
 touch('/afs/ipp/u/abock/pub/pyUsage/dd/%s'%getpass.getuser())
-
-
-
-
