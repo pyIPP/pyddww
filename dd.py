@@ -148,6 +148,13 @@ class parameterInfo(object):
         self.items = items
         self.format = format
 
+class mappingInfo(object):
+    def __init__(self, name, device, channel):
+        object.__init__(self)
+        self.name = name
+        self.device = device
+        self.channel = channel
+
 class parameter(object):
     def __init__(self, setName, parName, data, unit):
         object.__init__(self)
@@ -690,8 +697,29 @@ class shotfile(object):
         nlist = numpy.zeros(256, dtype=numpy.dtype('S9'))
         __libddww__.ddlnames_(ctypes.byref(error), ctypes.byref(self.diaref), nam, ctypes.byref(listlen), 
                               nlist.ctypes.data_as(ctypes.c_void_p), lname, ctypes.c_uint64(9*256))
+        getError(error.value)
         output = []
         for i in xrange(listlen.value):
             output.append(nlist[i].replace('\x00','').strip())
         return output
+
+    def getMappingInfo(self, name, indices=None):
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        if indices==None:
+            indices = numpy.ones(3, dtype=numpy.uint32)
+        else:
+            indices = numpy.uint32(indices)
+        try:
+            nam = ctypes.c_char_p(name)
+        except TypeError:
+            nam = ctypes.c_char_p(name.encode())
+        lname = ctypes.c_uint64(len(name))
+        error = ctypes.c_int32(0)
+        devname = b' '*8
+        channel = ctypes.c_int32(0)
+        __libddww__.ddmapinfo_(ctypes.byref(error), ctypes.byref(self.diaref), nam, indices.ctypes.data_as(ctypes.c_void_p), 
+                               ctypes.c_char_p(devname), ctypes.byref(channel), lname, ctypes.c_uint64(8))
+        getError(error.value)
+        return mappingInfo(name, devname.replace('\x00', ''), numpy.int32(channel.value))
 
