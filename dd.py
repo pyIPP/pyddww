@@ -737,3 +737,20 @@ class shotfile(object):
         getError(error.value)
         return mappingInfo(name, devname.replace('\x00', ''), numpy.int32(channel.value))
 
+    def GetSignal(self, name, cal=False):
+        warnings.warn('GetSignal will be removed in the future.')
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        objectType = self.getObjectValue(name, 'objtype')
+        if objectType==6:
+            if cal:
+                return self.getSignalGroupCalibrated(name)[0]
+            else:
+                return self.getSignalGroup(name)
+        elif objectType==7:
+            if cal:
+                return self.getSignalCalibrated(name)[0]
+            else:
+                return self.getSignal(name)
+        else:
+            raise Exception('Unsupported object type: %d' % objectType)
