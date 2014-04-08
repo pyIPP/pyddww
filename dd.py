@@ -168,6 +168,29 @@ class parameterSet(dict):
         dict.__init__(self)
         self.name = setName
 
+class signal(object):
+    def __init__(self, name, data, time=None, unit=''):
+        object.__init__(self)
+        self.name = name
+        self.data = data
+        self.time = time
+        self.unit = ''
+
+    def __call__(self, tBegin, tEnd):
+        if self.time==None:
+            raise Exception('Signal is not time dependent.')
+        index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
+        return signal(self.name, self.data[index], self.time[index], self.unit)
+
+    def max(self):
+        return numpy.nanmax(self.data)
+
+    def min(self):
+        return numpy.nanmin(self.data)
+
+    def median(self):
+        return numpy.median(self.data)
+
 class shotfile(object):
     """ Class to load the data from the shotfile. """
     def __init__(self, diagnostic=None, pulseNumber=None, experiment='AUGD', edition=0):
@@ -336,9 +359,16 @@ class shotfile(object):
             if calibrated:
                 if dtype not in [numpy.float32, numpy.float64]:
                     dtype=numpy.float32
-                return self.getSignalCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                data, unit = self.getSignalCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
             else:
-                return self.getSignal(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                data = self.getSignal(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                unit = ''
+            try:
+                time = self.getTimeBase(name, tBegin=tBegin, tEnd=tEnd)
+            except Exception, Error:
+                print Error
+                time = None
+            return signal(name, data, time=time, unit=unit)
         elif objectType==8:
             if dtype not in [numpy.float32, numpy.float64]:
                 dtype=numpy.float32
@@ -738,7 +768,7 @@ class shotfile(object):
         return mappingInfo(name, devname.replace('\x00', ''), numpy.int32(channel.value))
 
     def GetSignal(self, name, cal=False):
-        warnings.warn('GetSignal will be removed in the future.')
+        warnings.warn('GetSignal will be removed in the future.', DeprecationWarning)
         if not self.status:
             raise Exception('Shotfile not open!')
         objectType = self.getObjectValue(name, 'objtype')
