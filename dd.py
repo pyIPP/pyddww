@@ -104,17 +104,17 @@ class signalInfo(object):
         self.index = index
         self.timeBase = timeBase
 
-    def nDim():
+    def ndim():
         doc = """ Number of dimension of the signal. """
         def fget(self):
             return numpy.size(filter(lambda i: self.index[i]>1, xrange(self.index.size)))
         return locals()
-    nDim = property(**nDim())
+    ndim = property(**ndim())
 
     def size():
         doc = """ Number of total datapoints in the signal. """
         def fget(self):
-            return self.index[:self.nDim].prod()
+            return self.index[:self.ndim].prod()
         return locals()
     size = property(**size())
 
@@ -157,11 +157,11 @@ class qualifierInfo(object):
         self.indices = indices
         self.maxSection = maxSection
 
-    def nDim():
+    def ndim():
         def fget(self):
             return self.indices[self.indices>1].size
         return locals()
-    nDim = property(**nDim())
+    ndim = property(**ndim())
 
     def size():
         def fget(self):
@@ -222,6 +222,13 @@ class signal(object):
     def mean(self):
         return numpy.mean(self.data)
 
+    def size():
+        def fget(self):
+            return self.data.size
+        return locals()
+    size = property(**size())
+
+
 class signalGroup(object):
     def __init__(self, name, data, time=None, unit=''):
         object.__init__(self)
@@ -236,6 +243,26 @@ class signalGroup(object):
         index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
         return signal(self.name, self.data[index], self.time[index], self.unit)
 
+    def __getitem__(self, indices):
+        if self.time==None:
+            if self.data.ndim == numpy.size(indices):
+                return signal(self.name, self.data[indices], None, self.unit)
+            else:
+                raise Exception('Wrong number of indices provided. Get %d needed %d.' % (numpy.size(indices), self.data.ndim))
+        else:
+            if self.data.ndim-1 == numpy.size(indices):
+                if numpy.size(indices)==1:
+                    try:
+                        return signal(self.name, self.data[:,indices[0]], self.time, self.unit)
+                    except Exception:
+                        return signal(self.name, self.data[:, indices], self.time, self.unit)
+                elif numpy.size(indices)==2:
+                    return signal(self.name, self.data[:,indices[0], indices[1]], self.time, self.unit)
+                elif numpy.size(indices)==3:
+                    return signal(self.name, self.data[:,indices[0], indices[1], indices[2]], self.time, self.unit)
+                else:
+                    raise Exception('Invalid number of indices: Got %d needed %d' % (numpy.size(indices), (self.data.nnim-1)))
+
     def max(self, axis=None):
         return numpy.nanmax(self.data, axis=axis)
     
@@ -248,6 +275,24 @@ class signalGroup(object):
     def mean(self, axis=None):
         return numpy.mean(self.data, axis=axis)
 
+    def shape():
+        def fget(self):
+            return self.data.shape
+        return locals()
+    shape = property(**shape())
+
+    def size():
+        def fget(self):
+            return self.data.size
+        return locals()
+    size = property(**size())
+
+    def ndim():
+        def fget(self):
+            return self.data.ndim
+        return locals()
+    ndim = property(**ndim())
+
 class areaBaseInfo(object):
     def __init__(self, name, sizes, dimensions, index):
         object.__init__(self)
@@ -256,11 +301,11 @@ class areaBaseInfo(object):
         self.dimensions = dimensions
         self.index = index
 
-    def nDim():
+    def ndim():
         def fget(self):
             return self.sizes[self.sizes>1].size
         return locals()
-    nDim = property(**nDim())
+    ndim = property(**ndim())
 
     def size():
         def fget(self):
@@ -572,11 +617,11 @@ class shotfile(object):
         index = numpy.append(k2-k1+1, info.index[1:])
         try:
             typ = ctypes.c_uint32(__type__[dtype])
-            data = numpy.zeros(index[:info.nDim], dtype=dtype, order='F')
+            data = numpy.zeros(index[:info.ndim], dtype=dtype, order='F')
         except KeyError, Error:
             dataformat = self.getObjectValue(name, 'dataformat')
             typ = ctypes.c_uint32(0)
-            data = numpy.zeros(index[:info.nDim], dtype=__dataformat__[dataformat], order='F')
+            data = numpy.zeros(index[:info.ndim], dtype=__dataformat__[dataformat], order='F')
         try:
             sigName = ctypes.c_char_p(name)
         except TypeError:
@@ -615,7 +660,7 @@ class shotfile(object):
         if dtype not in [numpy.float32, numpy.float64]:
             dtype=numpy.float32
         typ = ctypes.c_uint32(__type__[dtype])
-        data = numpy.zeros(index[:info.nDim], dtype=dtype, order='F')
+        data = numpy.zeros(index[:info.ndim], dtype=dtype, order='F')
         try:
             sigName = ctypes.c_char_p(name)
         except TypeError:
@@ -890,7 +935,7 @@ class shotfile(object):
         aInfo = self.getAreaBaseInfo(name)
         error = ctypes.c_int32(0)
         if aInfo.index==0:
-            index = aInfo.sizes[:aInfo.nDim]
+            index = aInfo.sizes[:aInfo.ndim]
             k1 = 1
             k2 = index[0]
         else:
@@ -901,9 +946,9 @@ class shotfile(object):
                 tEnd = tInfo.tEnd
             k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
             if aInfo.index==1:
-                index = numpy.append(k2-k1+1, aInfo.sizes[:aInfo.nDim])
+                index = numpy.append(k2-k1+1, aInfo.sizes[:aInfo.ndim])
             elif aInfo.index in [2,3]:
-                index = numpy.append(aInfo.sizes[:aInfo.nDim], k2-k1+1)
+                index = numpy.append(aInfo.sizes[:aInfo.ndim], k2-k1+1)
             else:
                 raise Exception('Invalid area base index.')
         try:
@@ -952,7 +997,7 @@ class shotfile(object):
         except TypeError:
             sigName = ctypes.c_char_p(name.encode())
         lname = ctypes.c_uint64(len(name))
-        data = numpy.zeros(info.indices[:info.nDim], dtype=numpy.int32, order='F')
+        data = numpy.zeros(info.indices[:info.ndim], dtype=numpy.int32, order='F')
         lbuf = ctypes.c_int32(info.size)
         status = ctypes.c_int32(0)
         __libddww__.ddqget_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(status), 
