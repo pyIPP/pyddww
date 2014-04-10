@@ -228,6 +228,12 @@ class signal(object):
         return locals()
     size = property(**size())
 
+    def removeNaN(self):
+        index = self.data==self.data
+        self.data = self.data[index]
+        if self.time!=None:
+            self.time = self.time[index]
+
 
 class signalGroup(object):
     def __init__(self, name, data, time=None, unit=''):
