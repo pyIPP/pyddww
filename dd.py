@@ -396,6 +396,30 @@ class shotfile(object):
             except Exception:
                 return output
 
+    def getSignalNames(self):
+        """ Return list of all signal names in the shotfile. """
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        output = []
+        names = self.getObjectNames()
+        for key in names.keys():
+            name = names[key]
+            if self.getObjectValue(name, 'objtype')==7:
+                output.append(name)
+        return output
+
+    def getSignalGroupNames(self):
+        """ Return list of all signalgroup names in the shotfile. """
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        output = []
+        names = self.getObjectNames()
+        for key in names.keys():
+            name = names[key]
+            if self.getObjectValue(name, 'objtype')==6:
+                output.append(name)
+        return output
+
     def getSignalInfo(self, name):
         """ Returns a signalInfo object containing the information of the signal name """
         if not self.status:
