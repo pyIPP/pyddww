@@ -222,6 +222,9 @@ class signal(object):
     def mean(self):
         return numpy.mean(self.data)
 
+    def std(self):
+        return numpy.std(self.data)
+
     def size():
         def fget(self):
             return self.data.size
@@ -233,6 +236,84 @@ class signal(object):
         self.data = self.data[index]
         if self.time!=None:
             self.time = self.time[index]
+
+    def removeInvalid(self):
+        self.removeNaN()
+        index = numpy.isfinite(self.data)
+        self.time = self.time[index]
+        self.data = self.data[index]
+
+    def __iadd__(self, rhs):
+        try:
+            self.data += numpy.interp(self.time, rhs.time, rhs.data)
+            self.name  = '(%s + %s)' % (self.name, rhs.name)
+        except AttributeError, Error:
+            self.data += rhs
+        return self
+
+    def __add__(self, rhs):
+        try:
+            return signal('(%s + %s)' % (self.name, rhs.name), self.data + numpy.interp(self.time, rhs.time, rhs.data), self.time)
+        except AttributeError:
+            return signal(self.name, self.data + rhs, self.time)
+
+    def __radd__(self, rhs):
+        return self.__add__(rhs)
+
+    def __isub__(self, rhs):
+        try:
+            self.data -= numpy.interp(self.time, rhs.time, rhs.data)
+            self.name = '(%s - %s)' % (self.name, rhs.name)
+        except AttributeError:
+            self.data -= rhs
+        return self
+
+    def __sub__(self, rhs):
+        try:
+            return signal('(%s - %s)' % (self.name, rhs.name),  self.data - numpy.interp(self.time, rhs.time, rhs.data), self.time)
+        except AttributeError:
+            return signal(self.name, self.data - rhs, self.time)
+
+    def __rsub__(self, rhs):
+        return signal(self.name, rhs-self.data, self.time)
+
+    def __pow__(self, exponent):
+        return signal(self.name, self.data**exponent, self.time)
+
+    def __imul__(self, rhs):
+        try:
+            self.data *= numpy.interp(self.time, rhs.time, rhs.data)
+            self.name = '(%s * %s)' % (self.name, rhs.name)
+        except AttributeError:
+            self.data *= rhs
+        return self
+
+    def __mul__(self, rhs):
+        try:
+            return signal('(%s * %s)' % (self.name, rhs.name), self.data * numpy.interp(self.time, rhs.time, rhs.data), self.time)
+        except AttributeError:
+            return signal(self.name, self.data * rhs, self.time)
+
+    def __rmul__(self, rhs):
+        return self.__mul__(rhs)
+
+    def __idiv__(self, rhs):
+        try:
+            self.data /= numpy.interp(self.time, rhs.time, rhs.data)
+            self.name = '(%s / %s)' % (self.name, rhs.name)
+        except AttributeError:
+            self.data /= rhs
+        return self
+
+    def __div__(self, rhs):
+        try:
+            return signal('%s / %s' % (self.name, rhs.name), self.data / numpy.interp(self.time, rhs.time, rhs.data), self.time)
+        except AttributeError:
+            return signal(self.name, self.time / rhs, self.time)
+        
+    def __rdiv__(self, rhs):
+        return signal(self.name, rhs/self.data, self.time)
+            
 
 
 class signalGroup(object):
