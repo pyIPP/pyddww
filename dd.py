@@ -202,7 +202,7 @@ class signal(object):
         self.name = name
         self.data = data
         self.time = time
-        self.unit = ''
+        self.unit = unit
 
     def __call__(self, tBegin, tEnd):
         if self.time==None:
