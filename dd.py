@@ -7,18 +7,18 @@ import getpass
 
 __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' + os.environ['SYS'] + '/libddww8.so')
 
-__type__ = {numpy.int32:1, numpy.float32:2, numpy.float64:3, numpy.complex:4, numpy.bool:5, 
-            numpy.byte:6, numpy.int64:10, numpy.int16:11, numpy.uint16:12, numpy.uint32:13, 
+__type__ = {numpy.int32:1, numpy.float32:2, numpy.float64:3, numpy.complex:4, numpy.bool:5,
+            numpy.byte:6, numpy.int64:10, numpy.int16:11, numpy.uint16:12, numpy.uint32:13,
             numpy.uint64:14}
 
 __fields__ = {'version': lambda: numpy.int32(0), 'level': lambda: numpy.int32(0), 'status': lambda: numpy.int32(0),
-              'error': lambda: numpy.int32(0), 'relations': lambda: numpy.zeros(8, dtype=numpy.int32), 
-              'address': lambda: numpy.int32(0), 'length': lambda: numpy.int32(0), 'objnr': lambda: numpy.int32(0), 
-              'format': lambda: numpy.zeros(3, dtype=numpy.int32), 'dataformat': lambda: numpy.int32(0), 
-              'objtype': lambda: numpy.int32(0), 'text': lambda: 64*b' ', 'size': lambda: numpy.int32(0), 
+              'error': lambda: numpy.int32(0), 'relations': lambda: numpy.zeros(8, dtype=numpy.int32),
+              'address': lambda: numpy.int32(0), 'length': lambda: numpy.int32(0), 'objnr': lambda: numpy.int32(0),
+              'format': lambda: numpy.zeros(3, dtype=numpy.int32), 'dataformat': lambda: numpy.int32(0),
+              'objtype': lambda: numpy.int32(0), 'text': lambda: 64*b' ', 'size': lambda: numpy.int32(0),
               'indices': lambda: numpy.zeros(3, dtype=numpy.int32), 'items': lambda: numpy.int32(0)}
 
-__dataformat__ = {  1:numpy.uint8,
+__dataformat__ = { 1:numpy.uint8,
                     2:numpy.character,
                     3:numpy.int16,
                     4:numpy.int32,
@@ -30,6 +30,12 @@ __dataformat__ = {  1:numpy.uint8,
                     14:numpy.uint32,
                     15:numpy.uint64,
                     1794:numpy.dtype('S8')}
+
+__obj__ = { 1: 'Diagnostic', 2: 'List',       3: 'Device',      4: 'Param_Set', \
+            5: 'Map_Func',   6: 'Sig_Group',  7: 'Signal',      8: 'Time_Base', \
+            9: 'SF_List',   10: 'Algorithm', 11: 'Update_Set', 12: 'Loc_Timer', \
+           13: 'Area_Base', 14: 'Qualifier', 15: 'ModObj',     16: 'Map_Extd',  \
+           17: 'Resource'}
 
 def getError(error):
     """ Check if an error/warning occured. """
@@ -62,7 +68,7 @@ def getLastAUGShotNumber():
 
 def getLastShotNumber(diagnostic, pulseNumber=None, experiment='AUGD'):
     """ Returns the highest available shotnumber of the specified diagnostic.
-    If pulseNumber is specified, the search starts from there. """
+If pulseNumber is specified, the search starts from there. """
     if pulseNumber==None:
         pulseNumber = getLastAUGShotNumber()
     try:
@@ -94,6 +100,9 @@ def getPhysicalDimension(Unit):
     getError(error)
     return output.replace('\x00','').strip()
 
+class dd_info:
+    status = False
+
 class signalInfo(object):
     """ Class storing the general information of a Signal. """
     def __init__(self, name, type, index, timeBase):
@@ -120,14 +129,14 @@ class signalInfo(object):
 
 class timeBaseInfo(object):
     """ Class storing the general information for a timebase. """
-    def __init__(self, name,  ntVal, nPreTrig, tBegin, tEnd):
+    def __init__(self, name, ntVal, nPreTrig, tBegin, tEnd):
         """ Constructor initializing the timeBaseInfo object. """
         object.__init__(self)
         self.name = name
         self.ntVal = ntVal
         self.nPreTrig = nPreTrig
         self.tBegin = tBegin
-        self.tEnd = tEnd    
+        self.tEnd = tEnd
 
 class parameterSetInfo(object):
     def __init__(self, setName, names, items, format, devsig):
@@ -246,7 +255,7 @@ class signal(object):
     def __iadd__(self, rhs):
         try:
             self.data += numpy.interp(self.time, rhs.time, rhs.data)
-            self.name  = '(%s + %s)' % (self.name, rhs.name)
+            self.name = '(%s + %s)' % (self.name, rhs.name)
         except AttributeError, Error:
             self.data += rhs
         return self
@@ -270,7 +279,7 @@ class signal(object):
 
     def __sub__(self, rhs):
         try:
-            return signal('(%s - %s)' % (self.name, rhs.name),  self.data - numpy.interp(self.time, rhs.time, rhs.data), self.time)
+            return signal('(%s - %s)' % (self.name, rhs.name), self.data - numpy.interp(self.time, rhs.time, rhs.data), self.time)
         except AttributeError:
             return signal(self.name, self.data - rhs, self.time)
 
@@ -450,7 +459,7 @@ class shotfile(object):
         if self.status:
             error = ctypes.c_int32(0)
             result = __libddww__.ddclose_(ctypes.byref(error), ctypes.byref(self.diaref))
-            getError(error)    
+            getError(error)
             self.diaref.value = 0
                
     def getObjectName(self, objectNumber):
@@ -464,7 +473,7 @@ class shotfile(object):
         except TypeError:
             obj = ctypes.c_int32(objectNumber.value)
         name = b' '*8
-        __libddww__.ddobjname_(ctypes.byref(error), ctypes.byref(self.diaref), ctypes.byref(obj), 
+        __libddww__.ddobjname_(ctypes.byref(error), ctypes.byref(self.diaref), ctypes.byref(obj),
                                ctypes.c_char_p(name), lname)
         getError(error)
         return name.replace('\x00','').strip()
@@ -479,7 +488,7 @@ class shotfile(object):
             try:
                 name = self.getObjectName(counter)
                 output[counter] = name.encode()
-                counter += 1  
+                counter += 1
             except Exception:
                 return output
 
@@ -525,10 +534,10 @@ class shotfile(object):
             tName = ctypes.c_char_p(tname)
         except TypeError:
             tName = ctypes.c_char_p(tname.encode())
-        __libddww__.ddsinfo_(ctypes.byref(error), ctypes.byref(self.diaref) , sigName, ctypes.byref(typ), 
+        __libddww__.ddsinfo_(ctypes.byref(error), ctypes.byref(self.diaref) , sigName, ctypes.byref(typ),
                              tName, ind.ctypes.data_as(ctypes.c_void_p) , lsig , ltname)
         getError(error.value)
-        return signalInfo(name.replace('\x00', '').strip(), numpy.uint32(typ.value), ind, 
+        return signalInfo(name.replace('\x00', '').strip(), numpy.uint32(typ.value), ind,
                           tname.replace('\x00','').strip())
 
     def getObjectValue(self, name, field):
@@ -566,17 +575,17 @@ class shotfile(object):
 
     def __call__(self, name, dtype=None, tBegin=None, tEnd=None, calibrated=True):
         """ Unified function to read data from a signal, signalgroup or timebase.
-        Keywords:
-           dtype: If desired the datatype of the output can be specified. If no dtype is specified,
-                  the data will be returned as float32 in case of calibrated data and in the format
-                  used in the shotfile in case of uncalibrated data.
-           tBegin: Sets the starting point from which time data will be read. Note here that for signals
-                   without a time dependence or in case of signal groups where the time index is not the
-                   first index this keyword has no effect.
-           tEnd: Similar to tBegin but this sets the time until which the data will be read.
-           calibrated: If True calibrated data together with the unit will be returned. If False the data
-                       as written in the shotfile will be returned.
-        """
+Keywords:
+dtype: If desired the datatype of the output can be specified. If no dtype is specified,
+the data will be returned as float32 in case of calibrated data and in the format
+used in the shotfile in case of uncalibrated data.
+tBegin: Sets the starting point from which time data will be read. Note here that for signals
+without a time dependence or in case of signal groups where the time index is not the
+first index this keyword has no effect.
+tEnd: Similar to tBegin but this sets the time until which the data will be read.
+calibrated: If True calibrated data together with the unit will be returned. If False the data
+as written in the shotfile will be returned.
+"""
         if not self.status:
             raise Exception('Shotfile not open!')
         objectType = self.getObjectValue(name, 'objtype')
@@ -619,8 +628,8 @@ class shotfile(object):
 
     def getSignal(self, name, dtype=None, tBegin=None, tEnd=None):
         """ Return uncalibrated signal. If dtype is specified the data is
-        converted accordingly, else the data is returned in the format used
-        in the shotfile. """
+converted accordingly, else the data is returned in the format used
+in the shotfile. """
         if not self.status:
             raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
@@ -655,15 +664,15 @@ class shotfile(object):
         k1 = ctypes.c_uint32(k1)
         k2 = ctypes.c_uint32(k2)
         lsigname = ctypes.c_uint64(len(name))
-        result = __libddww__.ddsignal_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), 
-                                       ctypes.byref(k2), ctypes.byref(typ) ,ctypes.byref(lbuf) , 
+        result = __libddww__.ddsignal_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1),
+                                       ctypes.byref(k2), ctypes.byref(typ) ,ctypes.byref(lbuf) ,
                                        data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng), lsigname)
         getError(error)
         return data
 
     def getSignalCalibrated(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         """ Return calibrated signal. If dtype is specified the data is
-        converted accordingly, else the data is returned as numpy.float32. """
+converted accordingly, else the data is returned as numpy.float32. """
         if not self.status:
             raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
@@ -697,16 +706,16 @@ class shotfile(object):
         ncal = ctypes.c_int32(0)
         lname = ctypes.c_uint64(len(name))
         physdim = b' '*8
-        __libddww__.ddcsgnl_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2), 
-                             ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng), 
+        __libddww__.ddcsgnl_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2),
+                             ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng),
                              ctypes.byref(ncal), ctypes.c_char_p(physdim), lname, ctypes.c_uint64(8))
         getError(error.value)
         return data, physdim.replace('\x00', '').strip()
 
-    def getSignalGroup(self, name, dtype=None, tBegin=None, tEnd=None):       
+    def getSignalGroup(self, name, dtype=None, tBegin=None, tEnd=None):
         """ Return uncalibrated signalgroup. If dtype is specified the data is
-        converted accordingly, else the data is returned in the format used 
-        in the shotfile. """
+converted accordingly, else the data is returned in the format used
+in the shotfile. """
         if not self.status:
             raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
@@ -746,8 +755,8 @@ class shotfile(object):
         k1 = ctypes.c_uint32(k1)
         k2 = ctypes.c_uint32(k2)
         lname = ctypes.c_uint64(len(name))
-        __libddww__.ddsgroup_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), 
-                              ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), 
+        __libddww__.ddsgroup_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1),
+                              ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p),
                               ctypes.byref(leng), lname)
         getError(error.value)
         return data
@@ -790,8 +799,8 @@ class shotfile(object):
         ncal = ctypes.c_int32(0)
         lname = ctypes.c_uint64(len(name))
         physdim = b' '*8
-        __libddww__.ddcsgrp_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2), 
-                             ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng), 
+        __libddww__.ddcsgrp_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2),
+                             ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng),
                              ctypes.byref(ncal), ctypes.c_char_p(physdim), lname, ctypes.c_uint64(8))
         getError(error.value)
         return data, physdim.replace('\x00', '').strip()
@@ -815,7 +824,7 @@ class shotfile(object):
             sigName = ctypes.c_char_p(name)
         except TypeError:
             sigName = ctypes.c_char_p(name.encode())
-        result = __libddww__.ddtrange_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(time1), 
+        result = __libddww__.ddtrange_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(time1),
                                        ctypes.byref(time2), ctypes.byref(ntval), ctypes.byref(npretrig) ,lsig)
         getError(error.value)
         return timeBaseInfo(signalInfo.timeBase, numpy.uint32(ntval.value), numpy.uint32(npretrig.value), time1.value, time2.value)
@@ -832,7 +841,7 @@ class shotfile(object):
             tEnd = tInfo.tEnd
         typ = ctypes.c_uint32(__type__[dtype])
         error = ctypes.c_int32(0)
-        lsigname = ctypes.c_uint64(len(name))            
+        lsigname = ctypes.c_uint64(len(name))
         if info.index[0]==tInfo.ntVal:
             k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
         else:
@@ -849,8 +858,8 @@ class shotfile(object):
             sigName = ctypes.c_char_p(name)
         except TypeError:
             sigName = ctypes.c_char_p(name.encode())
-        result = __libddww__.ddtbase_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), 
-                                      ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), 
+        result = __libddww__.ddtbase_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1),
+                                      ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p),
                                       ctypes.byref(length) ,lsigname)
         getError(error.value)
         return data
@@ -884,7 +893,7 @@ class shotfile(object):
         k1 = ctypes.c_uint32(0)
         k2 = ctypes.c_uint32(0)
         lname = ctypes.c_uint64(len(name))
-        __libddww__.ddtindex_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(time1), 
+        __libddww__.ddtindex_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(time1),
                               ctypes.byref(time2), ctypes.byref(k1), ctypes.byref(k2), lname)
         getError(error.value)
         return numpy.uint32(k1.value), numpy.uint32(k2.value)
@@ -904,8 +913,8 @@ class shotfile(object):
         items = numpy.zeros(info, dtype=numpy.uint32)
         format = numpy.zeros(info, dtype=numpy.uint16)
         devsig = numpy.zeros(info, dtype=numpy.int32)
-        __libddww__.ddprinfo_(ctypes.byref(error), ctypes.byref(self.diaref), parName, ctypes.byref(nrec), 
-                              ctypes.c_char_p(rname), items.ctypes.data_as(ctypes.c_void_p), 
+        __libddww__.ddprinfo_(ctypes.byref(error), ctypes.byref(self.diaref), parName, ctypes.byref(nrec),
+                              ctypes.c_char_p(rname), items.ctypes.data_as(ctypes.c_void_p),
                               format.ctypes.data_as(ctypes.c_void_p), devsig.ctypes.data_as(ctypes.c_void_p) ,lname)
         getError(error.value)
         names = []
@@ -929,7 +938,7 @@ class shotfile(object):
         lpar = ctypes.c_uint64(len(parName))
         item = ctypes.c_uint32(0)
         format = ctypes.c_uint16(0)
-        __libddww__.dd_prinfo_(ctypes.byref(error), ctypes.byref(self.diaref), set, par, ctypes.byref(item), 
+        __libddww__.dd_prinfo_(ctypes.byref(error), ctypes.byref(self.diaref), set, par, ctypes.byref(item),
                                ctypes.byref(format), lset, lpar)
         getError(error.value)
         return parameterInfo(setName, parName, numpy.uint32(item.value), numpy.uint16(format.value))
@@ -957,7 +966,7 @@ class shotfile(object):
             data = numpy.zeros(info.items, dtype=__dataformat__[info.format])
         lbuf = ctypes.c_int32(info.items)
         physunit = ctypes.c_int32(0)
-        __libddww__.ddparm_(ctypes.byref(error), ctypes.byref(self.diaref), name, pname, ctypes.byref(typ), ctypes.byref(lbuf), 
+        __libddww__.ddparm_(ctypes.byref(error), ctypes.byref(self.diaref), name, pname, ctypes.byref(typ), ctypes.byref(lbuf),
                             data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(physunit), lname, lpname)
         getError(error.value)
         if data.size==1:
@@ -985,7 +994,7 @@ class shotfile(object):
         error = ctypes.c_int32(0)
         listlen = ctypes.c_int32(256)
         nlist = numpy.zeros(256, dtype=numpy.dtype('S9'))
-        __libddww__.ddlnames_(ctypes.byref(error), ctypes.byref(self.diaref), nam, ctypes.byref(listlen), 
+        __libddww__.ddlnames_(ctypes.byref(error), ctypes.byref(self.diaref), nam, ctypes.byref(listlen),
                               nlist.ctypes.data_as(ctypes.c_void_p), lname, ctypes.c_uint64(9*256))
         getError(error.value)
         output = []
@@ -1008,7 +1017,7 @@ class shotfile(object):
         error = ctypes.c_int32(0)
         devname = b' '*8
         channel = ctypes.c_int32(0)
-        __libddww__.ddmapinfo_(ctypes.byref(error), ctypes.byref(self.diaref), nam, indices.ctypes.data_as(ctypes.c_void_p), 
+        __libddww__.ddmapinfo_(ctypes.byref(error), ctypes.byref(self.diaref), nam, indices.ctypes.data_as(ctypes.c_void_p),
                                ctypes.c_char_p(devname), ctypes.byref(channel), lname, ctypes.c_uint64(8))
         getError(error.value)
         return mappingInfo(name, devname.replace('\x00', ''), numpy.int32(channel.value))
@@ -1044,7 +1053,7 @@ class shotfile(object):
         except TypeError:
             sigName = ctypes.c_char_p(name.encode())
         lname = ctypes.c_uint64(len(name))
-        __libddww__.ddainfo_(ctypes.byref(error) , ctypes.byref(self.diaref), sigName , sizes.ctypes.data_as(ctypes.c_void_p), 
+        __libddww__.ddainfo_(ctypes.byref(error) , ctypes.byref(self.diaref), sigName , sizes.ctypes.data_as(ctypes.c_void_p),
                              adim.ctypes.data_as(ctypes.c_void_p), ctypes.byref(index) , lname)
         getError(error.value)
         return areaBaseInfo(name, sizes, adim, numpy.int32(index.value))
@@ -1086,7 +1095,7 @@ class shotfile(object):
         k1 = ctypes.c_uint32(k1)
         k2 = ctypes.c_uint32(k2)
         __libddww__.ddagroup_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2),
-                              ctypes.byref(typ), ctypes.byref(albuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(length), 
+                              ctypes.byref(typ), ctypes.byref(albuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(length),
                               lname)
         getError(error.value)
         return data
@@ -1103,7 +1112,7 @@ class shotfile(object):
         exist = ctypes.c_int32(0)
         indices = numpy.zeros(3, dtype=numpy.int32)
         maxsection = ctypes.c_uint32(0)
-        __libddww__.ddqinfo_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(exist), 
+        __libddww__.ddqinfo_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(exist),
                              indices.ctypes.data_as(ctypes.c_void_p), ctypes.byref(maxsection), lname)
         getError(error.value)
         return qualifierInfo(name, numpy.int32(exist.value), indices, numpy.uint32(maxsection.value))
@@ -1121,178 +1130,153 @@ class shotfile(object):
         data = numpy.zeros(info.indices[:info.ndim], dtype=numpy.int32, order='F')
         lbuf = ctypes.c_int32(info.size)
         status = ctypes.c_int32(0)
-        __libddww__.ddqget_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(status), 
+        __libddww__.ddqget_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(status),
                             ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), lname)
         getError(error.value)
         return qualifier(name, numpy.int32(status.value), data)
 
+
+
+    def GetObjectHeader(self, name):
+        """ Returns the object header of a given object."""
+        if not self.status:
+            raise Exception('Shotfile not open!')
+
+        text = 64*'t'
+        error   = ctypes.c_int32(0)
+        _error  = ctypes.byref(error)
+        _diaref = ctypes.byref(self.diaref)
+        _name   = ctypes.c_char_p(name)
+        buffer  = (ctypes.c_int32*26)()
+        _buffer = ctypes.byref(buffer)
+        _text   = ctypes.c_char_p(text)
+        lname = ctypes.c_uint64(len(name))
+        ltext = ctypes.c_uint64(len(text))
+
+        result = __libddww__.ddobjhdr_(_error, _diaref, _name, _buffer, _text, lname, ltext)
+
+        getError(error)
+        output = dd_info()
+        output.error = error.value
+        if error.value == 0:
+            output.buffer = buffer[0:26]
+            output.text    = _text.value
+        return output
+
+
+    def GetRelations(self, name):
+        """ Returns all relations of a given object."""
+        if not self.status:
+            raise Exception('Shotfile not open!')
+
+        rel_out = dd_info()
+        head = self.GetObjectHeader(name)
+        rel_out.error = head.error
+        if head.error == 0:
+            ids = head.buffer[4:12]
+            rel_out.id  = []
+            rel_out.typ = []
+            rel_out.txt = []
+            for objid in ids:
+                if objid != 65535:
+                    rel_out.id.append(objid)
+                    tname = self.getObjectName(objid)
+                    rel_out.typ.append(self.getObjectValue(tname, 'objtype'))
+                    rel_out.txt.append(tname)
+        return rel_out
+
+
     def GetInfo(self, name):
         """ Returns information about the specified signal."""
-        if self.__status:
+        if not self.status:
+            raise Exception('Shotfile not open!')
 
-            output = dd_info()
-            rel = self.GetRelations(name)
-            output.error   = rel.error
-            output.tname   = None
-            output.aname   = None
-            output.tlen    = None
-            output.index   = None
-            output.units   = None
-            output.address = None
-            output.bytlen  = None
-            output.level   = None
-            output.status  = None
-            output.error   = None
-            output.ind     = None
-            if rel.error == 0:
-                jtime = None
-                jarea = None
-                for jid, id in enumerate(rel.typ):
-                    if id == 8:
-                        jtime = jid
-                        output.tname = rel.txt[jid]
-                    if id == 13:
-                        jarea = jid
-                        output.aname = rel.txt[jid]
+        output = dd_info()
+        rel = self.GetRelations(name)
+        output.rels = rel.txt
+        output.error = rel.error
+        output.tname = None
+        output.aname = None
+        output.tlen = None
+        output.index = None
+        output.units = None
+        output.address = None
+        output.bytlen = None
+        output.level = None
+        output.status = None
+        output.error = None
+        output.ind = None
+        if rel.error == 0:
+            jtime = None
+            jarea = None
+            for jid, id in enumerate(rel.typ):
+                if id == 8:
+                    jtime = jid
+                    output.tname = rel.txt[jid]
+                if id == 13:
+                    jarea = jid
+                    output.aname = rel.txt[jid]
 
-                head = self.GetObjectHeader(name)
-                buf_str = ''
-                for hb in head.buffer:
-                    buf_str += str(hb)+' '
-                sfprint('Header buffer %s' %buf_str, self.error_level, 3)
-                output.error = head.error
-                if head.error == 0:
-                    output.buf     = head.buffer
-                    output.objtyp  = output.buf[0]
-                    output.level   = output.buf[1]
-                    output.status  = output.buf[2]
-                    output.error   = output.buf[3]
-                    output.address = output.buf[12]
-                    output.bytlen  = output.buf[13]
-                    if output.objtyp in (6, 7, 8, 13):
-                        output.units   = unit_d[output.buf[15]]
-                        output.estatus = output.buf[17]
-                        output.fmt     = output.buf[14]
-                        if output.objtyp in (6, 7):
-                            output.index = output.buf[1]
-                            dims       = np.array(output.buf[18:22][::-1], dtype=np.int32)
-                            output.ind = np.array(dims[dims > 0])
+            head = self.GetObjectHeader(name)
+            buf_str = ''
+            for hb in head.buffer:
+                buf_str += str(hb)+' '
+            output.error = head.error
+            if head.error == 0:
+                output.buf = head.buffer
+                output.objtyp = output.buf[0]
+                output.level = output.buf[1]
+                output.status = output.buf[2]
+                output.error = output.buf[3]
+                output.address = output.buf[12]
+                output.bytlen = output.buf[13]
+                if output.objtyp in (6, 7, 8, 13):
+                    output.units = getPhysicalDimension(output.buf[15])
+                    output.estatus = output.buf[17]
+                    output.fmt = output.buf[14]
+                    if output.objtyp in (6, 7):
+                        output.index = output.buf[1]
+                        dims = numpy.array(output.buf[18:22][::-1], dtype=numpy.int32)
+                        output.ind = numpy.array(dims[dims > 0])
 
-                        if output.objtyp == 8: # If 'name' is a TB
-                            output.tlen = output.buf[21] # = dims[0]
-                            output.tfmt = output.buf[14]
-                        else:
-                            tlen1 = -1
-                            if (output.index == 1) or (output.objtyp == 7):
-                                tlen1 = dims[0]
-                            elif output.index in (2,3):
-                                tlen1 = dims[1]
-                            sfprint('tlen1 = %d' %tlen1, self.error_level, 2)
-                            if jtime != None:
-                                thead = self.GetObjectHeader(rel.txt[jtime])
-                                tbuf = thead.buffer
-                                output.tlen = tbuf[21]
-                                output.tfmt = tbuf[14]
-                                sfprint('tlen = %d' %output.tlen, self.error_level, 2)
+                    if output.objtyp == 8: # If 'name' is a TB
+                        output.tlen = output.buf[21] # = dims[0]
+                        output.tfmt = output.buf[14]
+                    else:
+                        tlen1 = -1
+                        if (output.index == 1) or (output.objtyp == 7):
+                            tlen1 = dims[0]
+                        elif output.index in (2,3):
+                            tlen1 = dims[1]
+                        if jtime != None:
+                            thead = self.GetObjectHeader(rel.txt[jtime])
+                            tbuf = thead.buffer
+                            output.tlen = tbuf[21]
+                            output.tfmt = tbuf[14]
 # Check consistency with TB length
-                                if output.tlen != tlen1 and tlen1 != -1:
-                                    output.tlen = -1
-                            else:
-                                sfprint('No TB found for %s %s' %(obj_d[output.objtyp], name), self.error_level, 2)
-
-                        if output.objtyp == 13: # If 'name' is an AB
-                            output.atlen = output.buf[21]
-                            output.afmt  = output.buf[14]
-                            sizes = np.array(output.buf[18:21], dtype = np.int32)
-                            output.sizes = sizes[sizes > 0]
+                            if output.tlen != tlen1 and tlen1 != -1:
+                                output.tlen = -1
                         else:
-# Beware: other than in DDAINFO2, here 'sizes' can have less than 
+                            print('No TB found for %s %s' %(obj_d[output.objtyp], name))
+
+                    if output.objtyp == 13: # If 'name' is an AB
+                        output.atlen = output.buf[21]
+                        output.afmt = output.buf[14]
+                        sizes = numpy.array(output.buf[18:21], dtype = numpy.int32)
+                        output.sizes = sizes[sizes > 0]
+                    else:
+# Beware: other than in DDAINFO2, here 'sizes' can have less than
 # 3 dims, as the 0-sized are removed. Usually (always?) it has 1 dim.
-                            if jarea != None:
-                                ahead = self.GetObjectHeader(rel.txt[jarea])
-                                abuf = ahead.buffer
-                                output.atlen = abuf[21] # #time points of AB
-                                output.afmt  = abuf[14]
-                                sizes = np.array(abuf[18:21], dtype = np.int32)
-                                output.sizes = sizes[sizes > 0]
+                        if jarea != None:
+                            ahead = self.GetObjectHeader(rel.txt[jarea])
+                            abuf = ahead.buffer
+                            output.atlen = abuf[21] # #time points of AB
+                            output.afmt = abuf[14]
+                            sizes = numpy.array(abuf[18:21], dtype = numpy.int32)
+                            output.sizes = sizes[sizes > 0]
 
-            return output
-        return None
+        return output
 
-
-    def GetParameterInfo(self, set_name, par_name):
-        """ Returns information about the parameter 'par_name' of the parameter set 'set_name'."""
-        sfprint('Fetching parameter %s from PS %s' %(par_name,set_name), self.error_level, 3)
-        if self.__status:
-            output = dd_info()
-            error   = ct.c_int32(0)
-            _error  = ct.byref(error)
-            _diaref = ct.byref(self.__diaref)
-            pset    = ct.c_char_p(set_name)
-            par     = ct.c_char_p(par_name)
-            item    = ct.c_uint32(0)
-            _item   = ct.byref(item)
-            format  = ct.c_uint16(0)
-            _format = ct.byref(format)
-            lpar = ct.c_uint64(len(par_name))
-            lset = ct.c_uint64(len(set_name))
-
-            result = libddww.dd_prinfo_(_error, _diaref, pset, par, _item, _format, lset, lpar)
-
-            self.GetError(error)
-            output.error = error.value
-            if error.value == 0:
-                output.item = item.value
-                output.format = format.value
-            return output
-        return None
-
-
-    def GetParameter(self, set_name, par_name):
-        """ Returns the value of the parameter 'par_name' of the parameter set 'set_name'. """
-        if self.__status:
-            info = self.GetParameterInfo(set_name, par_name)
-            if info.error == 0:
-                error     = ct.c_int32(0)
-                _error    = ct.byref(error)
-                _diaref   = ct.byref(self.__diaref)
-                setn      = ct.c_char_p(set_name)
-                lset      = ct.c_uint64(len(set_name))
-                par       = ct.c_char_p(par_name)
-                lpar      = ct.c_uint64(len(par_name))
-                physunit  = ct.c_int32(0)
-                _physunit = ct.byref(physunit)
-# Characters
-                if info.format in (2, 1794, 3842, 7938, 12034, 16130, 18178):
-                    ndim = fmt2len[info.format]
-                    nlen = ndim*info.item
-                    typin  = ct.c_int32(6)
-                    lbuf   = ct.c_uint32(nlen)
-                    buffer = ct.c_char_p('d'*nlen)
-                    _typin = ct.byref(typin)
-                    _lbuf  = ct.byref(lbuf)
-                    lndim  = ct.c_uint64(ndim)
-
-                    result = libddww.ddparm_(_error, _diaref, setn, par, _typin, \
-                                             _lbuf, buffer, _physunit, lset, lpar, lndim)
-
-                    self.GetError(error)
-                    a=[]
-                    for j in range(info.item):
-                        a.append(buffer.value[j*ndim:(j+1)*ndim])
-                    return np.array(a)
-                else:
-                    typin = ct.c_int32(fmt2type[info.format])
-                    lbuf = ct.c_uint32(info.item)
-                    buffer = (fmt2ct[info.format]*info.item)()
-                    _typin = ct.byref(typin)
-                    _lbuf = ct.byref(lbuf)
-                    _buffer = ct.byref(buffer)
-                    result = libddww.ddparm_(_error, _diaref, setn, par, _typin, \
-                                             _lbuf, _buffer, _physunit, lset, lpar)
-                    return np.frombuffer(buffer, dtype=np.dtype(buffer))[0]
-                self.units = unit_d[_physunit.value]
-        return None
 
 
 # to not annoy users that don't even use this library with e-mails,

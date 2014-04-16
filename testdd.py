@@ -54,13 +54,13 @@ class testdd(unittest.TestCase):
 # a=Integer TB in [ns], b="calibrated" in float,[s]
         sf = dd.shotfile()
         sf.open('MSX', 28053)
-#        a = sf.getTimeBase('TIME-AD0',dtype=numpy.int64)
+# a = sf.getTimeBase('TIME-AD0',dtype=numpy.int64)
 # Gives segmentation fault
         b = sf.getTimeBase('TIME-AD0',dtype=numpy.float32)
         sf.close()
         self.assertFalse(sf.status)
         del sf
-#        print a
+# print a
         print b
 
     def test_sig_calib(self):
@@ -96,7 +96,33 @@ class testdd(unittest.TestCase):
         b = dd.getLastShotNumber('LBO',pulseNumber=30436)
         print('%d %d' %(a,b))
 
+    def test_getrelations(self):
+        sf = dd.shotfile()
+        sf.open('CEZ', 30407)
+        rel = sf.GetRelations('Ti')
+        sf.close()
+        self.assertFalse(sf.status)
+        del sf
+        print rel.txt
+
+    def test_GetInfo(self):
+        sf = dd.shotfile()
+        sf.open('CEC', 30133)
+        info = sf.GetInfo('Trad-A')
+        sf.close()
+        self.assertFalse(sf.status)
+        del sf
+        print '\nCompare with ISIS'
+        print 'Type', dd.__obj__[info.objtyp]
+        print 'Level', info.level
+        print 'Status', info.status
+        print 'Error code', info.error
+        print 'Length', info.error
+        print 'Data format', dd.__dataformat__[info.fmt]
+        print 'Physical unit', info.units
+        print 'Dimensions', info.ind
+        print 'Relations', info.rels
+        print ''
+
 if __name__=='__main__':
     unittest.main()
-
-
