@@ -719,6 +719,9 @@ class shotfile(object):
             if info.index[0]==tInfo.ntVal:
                 k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
             else:
+                warnings.warn(
+                'Length of time base and first index of signal group "%s" not matching. Ignoring tBegin/tEnd.'%name,
+                RuntimeWarning)
                 k1 = 1
                 k2 = info.index[0]
         except Exception:
@@ -762,6 +765,9 @@ class shotfile(object):
             if info.index[0]==tInfo.ntVal:
                 k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
             else:
+                warnings.warn(
+                'Length of time base and first index of signal group "%s" not matching. Ignoring tBegin/tEnd.'%name,
+                RuntimeWarning)
                 k1 = 1
                 k2 = info.index[0]
         except Exception, Error:
@@ -826,8 +832,12 @@ class shotfile(object):
             tEnd = tInfo.tEnd
         typ = ctypes.c_uint32(__type__[dtype])
         error = ctypes.c_int32(0)
-        lsigname = ctypes.c_uint64(len(name))
-        k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        lsigname = ctypes.c_uint64(len(name))            
+        if info.index[0]==tInfo.ntVal:
+            k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+        else:
+            k1 = 1
+            k2 = info.index[0]
         if dtype not in [numpy.float32, numpy.float64]:
             dtype = numpy.float32
         data = numpy.zeros(k2-k1+1, dtype=dtype)
