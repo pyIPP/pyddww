@@ -54,14 +54,14 @@ class testdd(unittest.TestCase):
 # a=Integer TB in [ns], b="calibrated" in float,[s]
         sf = dd.shotfile()
         sf.open('MSX', 28053)
-# a = sf.getTimeBase('TIME-AD0',dtype=numpy.int64)
 # Gives segmentation fault
         b = sf.getTimeBase('TIME-AD0',dtype=numpy.float32)
         sf.close()
         self.assertFalse(sf.status)
         del sf
-# print a
-        print b
+        tol = 1e-5
+        self.assertTrue(numpy.abs(b[0] + 0.6550321) < tol)
+        self.assertTrue(numpy.abs(b[-1] -11.34496403) < tol)
 
     def test_sig_calib(self):
         sf = dd.shotfile()
@@ -71,8 +71,12 @@ class testdd(unittest.TestCase):
         sf.close()
         self.assertFalse(sf.status)
         del sf
-        print a
-        print b
+        tol = 1e-5
+        self.assertTrue(numpy.abs(a[0] + 1) < tol)
+        self.assertTrue(numpy.abs(a[-1] -11) < tol)
+        tol *= 1e17
+        self.assertTrue(numpy.abs(b[0][0] - 1.39682516e+17) < tol)
+        self.assertTrue(numpy.abs(b[0][-1] + 1.53650771e+18) < tol)
 
     def test_char_sgr(self):
         sf = dd.shotfile()
@@ -81,7 +85,8 @@ class testdd(unittest.TestCase):
         sf.close()
         self.assertFalse(sf.status)
         del sf
-        print a
+        mystr = "".join(a[:,0]).strip()
+        self.assertEqual(mystr,'Rsquad')
 
     def test_int_sgr_noTB(self):
         sf = dd.shotfile()
@@ -94,7 +99,8 @@ class testdd(unittest.TestCase):
     def test_lastshot(self):
         a = dd.getLastShotNumber('LBO',pulseNumber=30435)
         b = dd.getLastShotNumber('LBO',pulseNumber=30436)
-        print('%d %d' %(a,b))
+        self.assertEqual(a, 30434)
+        self.assertEqual(b, 30436)
 
     def test_getrelations(self):
         sf = dd.shotfile()
@@ -103,7 +109,8 @@ class testdd(unittest.TestCase):
         sf.close()
         self.assertFalse(sf.status)
         del sf
-        print rel.txt
+        self.assertEqual(rel.txt[0],'time')
+        self.assertEqual(rel.txt[1],'R_time')
 
     def test_GetInfo(self):
         sf = dd.shotfile()
@@ -112,17 +119,18 @@ class testdd(unittest.TestCase):
         sf.close()
         self.assertFalse(sf.status)
         del sf
-        print '\nCompare with ISIS'
-        print 'Type', dd.__obj__[info.objtyp]
-        print 'Level', info.level
-        print 'Status', info.status
-        print 'Error code', info.error
-        print 'Length', info.error
-        print 'Data format', dd.__dataformat__[info.fmt]
-        print 'Physical unit', info.units
-        print 'Dimensions', info.ind
-        print 'Relations', info.rels
-        print ''
+        self.assertEqual(dd.__obj__[info.objtyp], 'Sig_Group')
+        self.assertEqual(info.level, 1)
+        self.assertEqual(info.status, 0)
+        self.assertEqual(info.error, 0)
+        self.assertEqual(info.bytlen,62914560)
+        self.assertEqual(dd.__dataformat__[info.fmt], numpy.float32)
+        self.assertEqual(info.units, 'eV')
+        self.assertEqual(info.ind[0], 114685)
+        self.assertEqual(info.ind[1], 60)
+        self.assertEqual(info.ind[2], 1)
+        self.assertEqual(info.ind[3], 1)
+        self.assertEqual(info.rels,['time-A', 'parms-A'])
 
 if __name__=='__main__':
     unittest.main()
