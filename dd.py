@@ -106,6 +106,118 @@ class dd_info(object):
         object.__init__(self)
         self.status = False
 
+class objectHeader(object):
+    def __init__(self, name, data, text):
+        object.__init__(self)
+        self.name = name
+        self.text = text
+        self.data = data
+
+    def buffer():
+        def fget(self):
+            warnings.warn('buffer will be removed in the future, please use data.', DeprecationWarning)
+            return self.data
+        return locals()
+    buffer = property(**buffer())
+
+    def objectType():
+        def fget(self):
+            return __obj__[self.data[0]]
+        return locals()
+    objectType = property(**objectType())
+
+    def level():
+        def fget(self):
+            return self.data[1]
+        return locals()
+    level = property(**level())
+
+    def status():
+        def fget(self):
+            return self.data[2]
+        return locals()
+    status = property(**status())
+
+    def error():
+        def fget(self):
+            return self.data[3]
+        return locals()
+    error = property(**error())
+
+    def relations():
+        def fget(self):
+            return self.data[4:4+8][self.data[4:4+8]!=65535]
+        return locals()
+    relations = property(**relations())
+
+    def address():
+        def fget(self):
+            return self.data[12]
+        return locals()
+    address = property(**address())
+
+    def length():
+        def fget(self):
+            return self.data[13]
+        return locals()
+    length = property(**length())
+
+    def dataFormat():
+        def fget(self):
+            return __dataformat__[self.data[14]]
+        return locals()
+    dataFormat = property(**dataFormat())
+
+class signalHeader(objectHeader):
+    def __init__(self, name, data, text):
+        objectHeader.__init__(self, name, data, text)
+
+    def unit():
+        def fget(self):
+            return getPhysicalDimension(self.data[15])
+        return locals()
+    unit = property(**unit())
+
+class signalGroupHeader(objectHeader):        
+    def __init__(self, name, data, text):
+        objectHeader.__init__(self, name, data, text)
+
+    def unit():
+        def fget(self):
+            return getPhysicalDimension(self.data[15])
+        return locals()
+    unit = property(**unit())
+
+    def indices():
+        def fget(self):
+            return self.data[18:22][self.data[18:22]>1][::-1]
+        return locals()
+    indices = property(**indices())
+
+class areaBaseHeader(objectHeader):
+    def __init__(self, name, data, text):
+        objectHeader.__init__(self, name, data, text)
+
+    def unit():
+        def fget(self):
+            return getPhysicalDimension(self.data[15])
+        return locals()
+    unit = property(**unit())
+
+class qualifierHeader(objectHeader):
+    def __init__(self, name, data, text):
+        objectHeader.__init__(self, name, data, text)
+
+class timeBaseHeader(objectHeader):
+    def __init__(self, name, data, text):
+        objectHeader.__init__(self, name, data, text)
+
+__headers__ = { 6:signalGroupHeader,
+                7:signalHeader,
+                8:timeBaseHeader,
+                13:areaBaseHeader,
+                14:qualifierHeader }
+
 class signalInfo(object):
     """ Class storing the general information of a Signal. """
     def __init__(self, name, type, index, timeBase):
@@ -1144,27 +1256,24 @@ in the shotfile. """
         """ Returns the object header of a given object."""
         if not self.status:
             raise Exception('Shotfile not open!')
-
-        text = 64*'t'
+        text = 64*b' '
         error   = ctypes.c_int32(0)
-        _error  = ctypes.byref(error)
-        _diaref = ctypes.byref(self.diaref)
-        _name   = ctypes.c_char_p(name)
-        buffer  = (ctypes.c_int32*26)()
-        _buffer = ctypes.byref(buffer)
-        _text   = ctypes.c_char_p(text)
+        try:
+            _name = ctypes.c_char_p(name)
+        except TypeError:
+            _name = ctypes.c_char_p(name.encode())
+        buffer = numpy.zeros(26, dtype=numpy.int32)
         lname = ctypes.c_uint64(len(name))
         ltext = ctypes.c_uint64(len(text))
-
-        result = __libddww__.ddobjhdr_(_error, _diaref, _name, _buffer, _text, lname, ltext)
-
+        result = __libddww__.ddobjhdr_(ctypes.byref(error), ctypes.byref(self.diaref), _name, 
+                                       buffer.ctypes.data_as(ctypes.c_void_p), ctypes.c_char_p(text), 
+                                       lname, ltext)
         getError(error)
-        output = dd_info()
-        output.error = error.value
-        if error.value == 0:
-            output.buffer = buffer[0:26]
-            output.text    = _text.value
-        return output
+        try:
+            return __headers__[buffer[0]](name, buffer, text.replace('\x00','').strip())
+        except Exception, Error:
+            print Error
+            return objectHeader(name, buffer, text.replace('\x00','').strip())
 
     def GetObjectHeader(self, name):
         warnings.warn('GetObjectHeader will be removed in the future, please use getObjectHeader.', DeprecationWarning)
