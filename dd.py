@@ -3,6 +3,7 @@ import ctypes
 import os
 import copy
 import warnings
+warnings.simplefilter('always', DeprecationWarning)
 import getpass
 
 __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' + os.environ['SYS'] + '/libddww8.so')
@@ -100,8 +101,10 @@ def getPhysicalDimension(Unit):
     getError(error)
     return output.replace('\x00','').strip()
 
-class dd_info:
-    status = False
+class dd_info(object):
+    def __init__(self):
+        object.__init__(self)
+        self.status = False
 
 class signalInfo(object):
     """ Class storing the general information of a Signal. """
@@ -1137,7 +1140,7 @@ in the shotfile. """
 
 
 
-    def GetObjectHeader(self, name):
+    def getObjectHeader(self, name):
         """ Returns the object header of a given object."""
         if not self.status:
             raise Exception('Shotfile not open!')
@@ -1163,14 +1166,17 @@ in the shotfile. """
             output.text    = _text.value
         return output
 
+    def GetObjectHeader(self, name):
+        warnings.warn('GetObjectHeader will be removed in the future, please use getObjectHeader.', DeprecationWarning)
+        return self.getObjectHeader(name)
 
-    def GetRelations(self, name):
+    def getRelations(self, name):
         """ Returns all relations of a given object."""
         if not self.status:
             raise Exception('Shotfile not open!')
 
         rel_out = dd_info()
-        head = self.GetObjectHeader(name)
+        head = self.getObjectHeader(name)
         rel_out.error = head.error
         if head.error == 0:
             ids = head.buffer[4:12]
@@ -1185,14 +1191,17 @@ in the shotfile. """
                     rel_out.txt.append(tname)
         return rel_out
 
+    def GetRelations(self, name):
+        warnings.warn('GetRelations will be removed in the future, please use getRelations.', DeprecationWarning)
+        return self.getRelations(name)
 
-    def GetInfo(self, name):
+    def getInfo(self, name):
         """ Returns information about the specified signal."""
         if not self.status:
             raise Exception('Shotfile not open!')
 
         output = dd_info()
-        rel = self.GetRelations(name)
+        rel = self.getRelations(name)
         output.rels = rel.txt
         output.error = rel.error
         output.tname = None
@@ -1217,7 +1226,7 @@ in the shotfile. """
                     jarea = jid
                     output.aname = rel.txt[jid]
 
-            head = self.GetObjectHeader(name)
+            head = self.getObjectHeader(name)
             buf_str = ''
             for hb in head.buffer:
                 buf_str += str(hb)+' '
@@ -1249,7 +1258,7 @@ in the shotfile. """
                         elif output.index in (2,3):
                             tlen1 = dims[1]
                         if jtime != None:
-                            thead = self.GetObjectHeader(rel.txt[jtime])
+                            thead = self.getObjectHeader(rel.txt[jtime])
                             tbuf = thead.buffer
                             output.tlen = tbuf[21]
                             output.tfmt = tbuf[14]
@@ -1268,7 +1277,7 @@ in the shotfile. """
 # Beware: other than in DDAINFO2, here 'sizes' can have less than
 # 3 dims, as the 0-sized are removed. Usually (always?) it has 1 dim.
                         if jarea != None:
-                            ahead = self.GetObjectHeader(rel.txt[jarea])
+                            ahead = self.getObjectHeader(rel.txt[jarea])
                             abuf = ahead.buffer
                             output.atlen = abuf[21] # #time points of AB
                             output.afmt = abuf[14]
@@ -1276,6 +1285,10 @@ in the shotfile. """
                             output.sizes = sizes[sizes > 0]
 
         return output
+
+    def GetInfo(self, name):
+        warnings.warn('GetInfo will be removed in the future, please use getInfo.', DeprecationWarning)
+        return self.getInfo(name)
 
 
 
