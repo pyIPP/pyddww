@@ -119,7 +119,7 @@ class objectHeader(object):
 
     def buffer():
         def fget(self):
-            warnings.warn('buffer will be removed in the future, please use data.', DeprecationWarning)
+            #warnings.warn('buffer will be removed in the future, please use data.', DeprecationWarning)
             return self.data
         return locals()
     buffer = property(**buffer())
@@ -849,6 +849,7 @@ class shotfile(object):
         info = self.getSignalInfo(name)
         try:
             tInfo = self.getTimeBaseInfo(name)
+            tSet = False if tBegin == None and tEnd == None else True
             if tBegin==None:
                 tBegin = tInfo.tBegin
             if tEnd==None:
@@ -856,9 +857,10 @@ class shotfile(object):
             if info.index[0]==tInfo.ntVal:
                 k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
             else:
-                warnings.warn(
-                'Length of time base and first index of signal group "%s" not matching. Ignoring tBegin/tEnd.'%name,
-                RuntimeWarning)
+                if tSet:
+                    warnings.warn(
+                    'Length of time base & 1st index of signal group "%s" not matching. Ignoring tBegin/tEnd as a precaution.'%name,
+                    RuntimeWarning)
                 k1 = 1
                 k2 = info.index[0]
         except Exception:
@@ -887,7 +889,8 @@ class shotfile(object):
                               ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p),
                               ctypes.byref(leng), lname)
         getError(error.value)
-        return data
+        # transpose data if timebase not first index, e.g. IDA
+        return data if self.getRelations(name).typ[0] == 8 else data.T
 
     def getSignalGroupCalibrated(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         if not self.status:
@@ -895,6 +898,7 @@ class shotfile(object):
         info = self.getSignalInfo(name)
         try:
             tInfo = self.getTimeBaseInfo(name)
+            tSet = False if tBegin == None and tEnd == None else True
             if tBegin==None:
                 tBegin = tInfo.tBegin
             if tEnd==None:
@@ -902,9 +906,10 @@ class shotfile(object):
             if info.index[0]==tInfo.ntVal:
                 k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
             else:
-                warnings.warn(
-                'Length of time base and first index of signal group "%s" not matching. Ignoring tBegin/tEnd.'%name,
-                RuntimeWarning)
+                if tSet:
+                    warnings.warn(
+                    'Length of time base & 1st index of signal group "%s" not matching. Ignoring tBegin/tEnd as a precaution.'%name,
+                    RuntimeWarning)
                 k1 = 1
                 k2 = info.index[0]
         except Exception, Error:
@@ -931,7 +936,8 @@ class shotfile(object):
                              ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng),
                              ctypes.byref(ncal), ctypes.c_char_p(physdim), lname, ctypes.c_uint64(8))
         getError(error.value)
-        return data, physdim.replace('\x00', '').strip()
+        # transpose data if timebase not first index, e.g. IDA
+        return data if self.getRelations(name).typ[0] == 8 else data.T, physdim.replace('\x00', '').strip()
 
 
     def getTimeBaseInfo(self, name):
@@ -963,6 +969,8 @@ class shotfile(object):
             raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
         tInfo = self.getTimeBaseInfo(name)
+        if info.timeBase != name:
+            return self.getTimeBase(info.timeBase, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
         if tBegin==None:
             tBegin = tInfo.tBegin
         if tEnd==None:
