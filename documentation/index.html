@@ -45,7 +45,7 @@
 </head>
 
 <body onload="toggleExplanation(); randomiseQa()">
-<h1>Python libraries to handle ASDEX Upgrade shotfiles</h1>
+<h1>Python library to handle ASDEX Upgrade shotfiles</h1>
 This Python library wraps around IPP's libddww to provide pythonic access to AUG shotfiles.
 <h3>Contents</h3>
 <ol>
@@ -58,7 +58,7 @@ This Python library wraps around IPP's libddww to provide pythonic access to AUG
 </ol>
 <h2 id="prelim">Preliminary commands</h2>
 <p>
-	The libraries work on Linux, i.e. qa01-qa14. Thus, you have to connect to these machines first.
+	The library works on Linux, i.e. qa01-qa14. Thus, you have to connect to one of these machines first.
 </p>
 <pre id="sshpre">
 ssh qa01
@@ -92,15 +92,20 @@ plt.show() 					<span class="pycomments"># show plot</span></pre>
 </div>
 <a href="javascript:void(0);" onclick="toggleExplanation()">Show explanation</a>.
 <div id="explanation" style="display:block;">	
-	An instance of <span>dd.shotfile</span> is assigned to the variable <span>tot</span>. <span>tot</span> can then simply be called like a function with the name of a signal, a signal group, or a time base as an argument. Here, the argument is the name of the signal containing the total NBI power. The return value is an object containing both data and time.
+	An instance of <span>dd.shotfile</span> is assigned to the variable <span>tot</span>. <span>tot</span> can 
+	then simply be called like a function with the name of a signal, a signal group, or a time base as an argument. 
+	Here, the argument is the name of the signal containing the total NBI power. The return value is an object 
+	containing both data and time.
 	<br />
 	<br />
-	You can execute this example by putting it into a file, e.g. 'example.py', and running the following lines in your shell:
+	You can execute this example by putting it into a file, e.g. 'example.py', and running the following lines 
+	in your shell:
 	<pre>
 chmod +x example.py
 ./example.py</pre>
 
-	Alternatively, you can start a Python interpreter and run it there. To do that, first copy the Python code above into your clipboard. Then, open an <span>ipython</span> shell with:
+	Alternatively, you can start a Python interpreter and run it there. To do that, first copy the Python code 
+	above into your clipboard. Then, open an <span>ipython</span> shell with:
 
 	<pre>
 ipython</pre>
@@ -109,7 +114,9 @@ ipython</pre>
 <pre>
 %paste
 </pre>
-	to execute the contents of your clipboard. Generally, <span>ipython</span> is recommended for interactive use since it is more comfortable than the standard <span>python</span> interpreter and offers additional functionality. For script execution the regular interpreter is sufficient.
+	to execute the contents of your clipboard. Generally, <span>ipython</span> is recommended for interactive use 
+	since it is more comfortable than the standard <span>python</span> interpreter and offers additional 
+	functionality. For script execution the regular interpreter is sufficient.
 </div>
 
 <h3>Result</h3>
@@ -145,7 +152,11 @@ plt.show() 					<span class="pycomments"># show plot</span></pre>
 
 <h2 id="more">More documentation</h2>
 <p>
-	For most use cases the above scenario can easily be adapted. If you find yourself in need of more complex functions, you can take a look at the <a href="html/classdd_1_1shotfile.html">Doxygen-generated documentation</a>. This can especially useful when accessing shotfiles that deviate from the standard in some way (e.g. unusual index ordering in signal groups, missing relations to area or time bases, etc.). There you also find functions that are useful for interactive usage, e.g. for listing all available objects.
+	For most use cases the above scenarios can be adapted easily. If you find yourself in need of more 
+	complex functions, you can take a look at the <a href="html/classdd_1_1shotfile.html">Doxygen-generated 
+	documentation</a>. This can especially useful when accessing shotfiles that deviate from the standard in 
+	some way (e.g. unusual index ordering in signal groups, missing relations to area or time bases, etc.). 
+	There you also find functions that are useful for interactive usage, e.g. for listing all available objects.
 </p>
 
 
@@ -153,7 +164,8 @@ plt.show() 					<span class="pycomments"># show plot</span></pre>
 <ul>
 	<li>
 		What about ww, kk or sfh?<br />
-		These exist, too, in the same folder as dd, albeit in a less polished state. Please <a href="#support">get in touch with us</a> if you need additional information.
+		These exist, too, in the same folder as dd, albeit in a less polished state. Please 
+		<a href="#support">get in touch with us</a> if you need additional information.
 	</li>
 	<li>
 		...
