@@ -3,9 +3,14 @@
   <TITLE>AUG python libraries</TITLE>
   <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
   <style type="text/css">
+  
+  body {
+  	width:70%;
+  	min-width:60em;
+  }
   pre {
   	margin:2em;
-  	padding:0.75em;
+  	padding:1em;
   	background-color: #eef;
   	width:50em;
   }
@@ -29,12 +34,20 @@
   	p.style.display = (p.style.display == "block") ? "none" : "block";
   	return false;
   }
+  function randomiseQa() {
+  	p = document.getElementById('sshpre');
+	num = Math.round(Math.random()*13+1);
+	num = (num > 9) ? num.toString() : '0' + num.toString();
+	p.innerHTML = 'ssh qa'+num
+  	return false;  	
+  }
   </script>
 </head>
 
-<body onload="toggleExplanation()">
+<body onload="toggleExplanation(); randomiseQa()">
 <h1>Python libraries to handle ASDEX Upgrade shotfiles</h1>
-Contents
+This Python library wraps around IPP's libddww to provide pythonic access to AUG shotfiles.
+<h3>Contents</h3>
 <ol>
 	<li><a href="#prelim">Preliminary commands</a></li>
 	<li><a href="#usage">Usage</a></li>
@@ -60,6 +73,8 @@ module load python27/basic
 <h2 id="usage">Usage</h2>
 <div>
 	The following example will load the total NBI power from the TOT shotfile and display a simple plot.
+<h3>Code</h3>
+
 	<pre>
 <span class="pycomments">#!/usr/bin/env python</span>
 <span class="pycomments"># line above sets the Python interpreter</span>
@@ -102,8 +117,10 @@ ipython</pre>
 <img src="example.png" />
 
 <p>
-	Another example for a 2D signal:
+	Another, more sophisticated example for a 2D signal (signal group):
 </p>
+<h3>Code</h3>
+
 	<pre>
 <span class="pycomments">#!/usr/bin/env python</span>
 <span class="pycomments"># line above sets the Python interpreter</span>
@@ -114,10 +131,13 @@ import dd 					<span class="pycomments"># load latest (!) dd library</span>
 # version from /afs/ipp/aug/ads-diags/common/python/lib</span>
 
 ida = dd.shotfile('IDA', 29761) 		<span class="pycomments"># instatiate and open shotfile</span>
-ne = ida('ne') 					<span class="pycomments"># grab electron density</span>
+Te = ida('Te') 					<span class="pycomments"># grab electron temperature</span>
 ida.close()					<span class="pycomments"># close shotfile (optional)</span>
-plt.plot(ne.area[1000], ne.data[1000]) 		<span class="pycomments"># create plot</span>
-plt.title('ne @ t=%3.2fs'%ne.time[1000])
+plt.plot(Te.area[1000], Te.data[1000]) 		<span class="pycomments"># create plot</span>
+plt.title('%s @ t=%3.2fs'%(Te.description, Te.time[1000]))
+plt.ylabel(Te.unit)
+plt.xlabel(Te.area.name)
+plt.grid('on')
 plt.show() 					<span class="pycomments"># show plot</span></pre>
 <h3>Result</h3>
 
@@ -125,7 +145,7 @@ plt.show() 					<span class="pycomments"># show plot</span></pre>
 
 <h2 id="more">More documentation</h2>
 <p>
-	For most use cases the above scenario can easily be adapted. If you find yourself in need of more complex functions, you can take a look at the <a href="html/classdd_1_1shotfile.html">Doxygen-generated documentation</a>. This can especially useful when accessing shotfiles that deviate from the standard in some way (e.g. unusual index ordering in signal groups, missing relations to area or time bases, etc.)
+	For most use cases the above scenario can easily be adapted. If you find yourself in need of more complex functions, you can take a look at the <a href="html/classdd_1_1shotfile.html">Doxygen-generated documentation</a>. This can especially useful when accessing shotfiles that deviate from the standard in some way (e.g. unusual index ordering in signal groups, missing relations to area or time bases, etc.). There you also find functions that are useful for interactive usage, e.g. for listing all available objects.
 </p>
 
 
