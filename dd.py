@@ -172,6 +172,12 @@ class objectHeader(object):
         return locals()
     dataFormat = property(**dataFormat())
 
+    def nBytes():
+        def fget(self):
+            return self.data[13]
+        return locals()
+    nBytes = property(**nBytes())
+
 class signalHeader(objectHeader):
     def __init__(self, name, data, text):
         objectHeader.__init__(self, name, data, text)
@@ -233,11 +239,11 @@ class timeBaseHeader(objectHeader):
     def __init__(self, name, data, text):
         objectHeader.__init__(self, name, data, text)
 
-    def length():
+    def nSteps():
         def fget(self):
             return self.data[21]
         return locals()
-    length = property(**length())
+    nSteps = property(**nSteps())
 
 class parameterSetHeader(objectHeader):
     def __init__(self, name, data, text):
@@ -1453,6 +1459,33 @@ class shotfile(object):
     def GetInfo(self, name):
         warnings.warn('GetInfo will be removed in the future, please use getInfo.', DeprecationWarning)
         return self.getInfo(name)
+
+    def getObjectData(self, name):
+        if not self.status:
+            raise Exception('Shotfile not open.')
+        header = self.getObjectHeader(name)
+        try:
+            name_ = ctypes.c_char_p(name)
+        except TypeError:
+            name_ = ctypes.c_char_p(name.encode())
+        lname = ctypes.c_uint64(len(name))
+        error = ctypes.c_int32(0)
+        dtype = header.dataFormat
+        buffer = numpy.zeros(header.nBytes, dtype=numpy.int8, order='F')
+        buffer.dtype = header.dataFormat
+        lbuf = ctypes.c_int32(buffer.size)
+        lengb = ctypes.c_uint32(0)
+        __libddww__.ddobjdata_(ctypes.byref(error), ctypes.byref(self.diaref), name_, ctypes.byref(lbuf), 
+                               buffer.ctypes.data_as(ctypes.c_void_p), ctypes.byref(lengb), lname)
+        getError(error.value)
+        if header.objectType=='Sig_Group':
+            return numpy.reshape(buffer, header.indices[::-1], order='C')
+        if header.objectType=='Area_Base':
+            order = header.nSteps
+            for el in header.sizes:
+                order = numpy.append(order, el)
+            buffer.shape = order
+        return buffer
 
 
 
