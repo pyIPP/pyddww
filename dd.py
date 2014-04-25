@@ -111,11 +111,12 @@ class dd_info(object):
         self.status = False
 
 class objectHeader(object):
-    def __init__(self, name, data, text):
+    def __init__(self, name, data, text, relationNames=None):
         object.__init__(self)
         self.name = name
         self.text = text
         self.data = data
+        self.relationNames = relationNames
 
     def buffer():
         def fget(self):
@@ -179,8 +180,8 @@ class objectHeader(object):
     nBytes = property(**nBytes())
 
 class signalHeader(objectHeader):
-    def __init__(self, name, data, text):
-        objectHeader.__init__(self, name, data, text)
+    def __init__(self, name, data, text, relationsNames=None):
+        objectHeader.__init__(self, name, data, text, relationNames)
 
     def unit():
         def fget(self):
@@ -189,8 +190,8 @@ class signalHeader(objectHeader):
     unit = property(**unit())
 
 class signalGroupHeader(objectHeader):        
-    def __init__(self, name, data, text):
-        objectHeader.__init__(self, name, data, text)
+    def __init__(self, name, data, text, relationNames=None):
+        objectHeader.__init__(self, name, data, text, relationNames)
 
     def unit():
         def fget(self):
@@ -205,8 +206,8 @@ class signalGroupHeader(objectHeader):
     indices = property(**indices())
 
 class areaBaseHeader(objectHeader):
-    def __init__(self, name, data, text):
-        objectHeader.__init__(self, name, data, text)
+    def __init__(self, name, data, text, relationNames=None):
+        objectHeader.__init__(self, name, data, text, relationNames)
 
     def sizes():
         def fget(self):
@@ -232,12 +233,12 @@ class areaBaseHeader(objectHeader):
     nSteps = property(**nSteps())
 
 class qualifierHeader(objectHeader):
-    def __init__(self, name, data, text):
-        objectHeader.__init__(self, name, data, text)
+    def __init__(self, name, data, text, relationNames=None):
+        objectHeader.__init__(self, name, data, text, relationNames)
 
 class timeBaseHeader(objectHeader):
-    def __init__(self, name, data, text):
-        objectHeader.__init__(self, name, data, text)
+    def __init__(self, name, data, text, relationNames=None):
+        objectHeader.__init__(self, name, data, text, relationNames)
 
     def nSteps():
         def fget(self):
@@ -246,8 +247,8 @@ class timeBaseHeader(objectHeader):
     nSteps = property(**nSteps())
 
 class parameterSetHeader(objectHeader):
-    def __init__(self, name, data, text):
-        objectHeader.__init__(self, name, data, text)
+    def __init__(self, name, data, text, relationNames=None):
+        objectHeader.__init__(self, name, data, text, relationNames)
 
     def items():
         def fget(self):
@@ -1220,6 +1221,13 @@ class shotfile(object):
     def getAreaBaseInfo(self, name):
         if not self.status:
             raise Exception('Shotfile not open!')
+        header = self.getObjectHeader(name)
+        if header.objectType=='Area_Base':
+            for el in self.getRelatingObjects(name):
+                objHeader = self.getObjectHeader(el)
+                if objHeader.objectType in ['Sig_Group', 'Signal']:
+                    return self.getAreaBaseInfo(el)
+            raise Exception('No signal/signal group relating to %s' % name)
         error = ctypes.c_int32(0)
         sizes = numpy.zeros(3, dtype=numpy.uint32)
         adim = numpy.zeros(3, dtype=numpy.uint32)
@@ -1334,10 +1342,14 @@ class shotfile(object):
                                        buffer.ctypes.data_as(ctypes.c_void_p), ctypes.c_char_p(text), 
                                        lname, ltext)
         getError(error)
+        relationNames = []
+        for i in xrange(4,12):
+            if buffer[i]!=65535:
+                relationNames.append(self.getObjectName(buffer[i]))
         try:
-            return __headers__[buffer[0]](name, buffer, text.replace('\x00','').strip())
+            return __headers__[buffer[0]](name, buffer, text.replace('\x00','').strip(), relationNames)
         except Exception, Error:
-            return objectHeader(name, buffer, text.replace('\x00','').strip())
+            return objectHeader(name, buffer, text.replace('\x00','').strip(), relationNames)
 
     def GetObjectHeader(self, name):
         warnings.warn('GetObjectHeader will be removed in the future, please use getObjectHeader.', DeprecationWarning)
@@ -1489,6 +1501,18 @@ class shotfile(object):
                 order = numpy.append(order, el)
             buffer.shape = order
         return buffer
+
+    def getRelatingObjects(self, name):
+        if not self.status:
+            raise Exception('Shotfile not open')
+        names = self.getObjectNames()
+        output = []
+        for i in names:
+            if names[i]!=name:
+                header = self.getObjectHeader(names[i])
+                if name in header.relationNames:
+                    output.append(names[i])
+        return output
 
 
 
