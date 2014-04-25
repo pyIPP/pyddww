@@ -1,0 +1,141 @@
+<html>
+<head>
+  <TITLE>AUG python libraries</TITLE>
+  <meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+  <style type="text/css">
+  pre {
+  	margin:2em;
+  	padding:0.5em;
+  	background-color: #eef;
+  	display:block;
+  	width:50em;
+  }
+
+  .pycomments {
+  	color:green;
+  }
+
+  span {
+  	font-family: monospace;
+  }
+
+  h2 {
+  	margin-top:3em;
+  }
+
+  </style>
+</head>
+
+<body>
+<h1>Python libraries to handle ASDEX Upgrade shotfiles</h1>
+Contents
+<ol>
+	<li><a href="#prelim">Preliminary commands</a></li>
+	<li><a href="#usage">Usage</a></li>
+	<li><a href="#more">Additional documentation</a></li>
+	<li><a href="#faq">Frequently asked questions</a></li>
+	<li><a href="#support">Support</a></li>
+	<li><a href="#src">Source code</a></li>
+</ol>
+<h2 id="prelim">Preliminary commands</h2>
+<p>
+	The libraries work on Linux, i.e. qa01-qa14. Thus, you have to connect to these machines first.
+</p>
+<pre>
+ssh qa11
+</pre>
+<p>
+	Then, set some environment variables.
+</p>
+<pre>
+setenv PYTHONPATH /afs/ipp/aug/ads-diags/common/python/lib
+module load python27/basic
+</pre>
+<h2 id="usage">Usage</h2>
+<p>
+	The following example will load the total NBI power from the TOT shotfile and display a simple plot.
+	<pre>
+<span class="pycomments">#!/usr/bin/env python</span>
+<span class="pycomments"># line above sets the Python interpreter</span>
+
+import matplotlib.pylab as plt 			<span class="pycomments"># load plotting library</span>
+import dd 					<span class="pycomments"># load latest (!) dd library</span>
+<span class="pycomments"># use "import dd_YYYYMMDD as dd" to safely load a specific
+# version from /afs/ipp/aug/ads-diags/common/python/lib</span>
+
+tot = dd.shotfile('TOT', 29761) 		<span class="pycomments"># instatiate and open shotfile</span>
+pnbi = tot('PNBI_TOT') 				<span class="pycomments"># grab total NBI power</span>
+tot.close()					<span class="pycomments"># close shotfile (optional)</span>
+plt.plot(pnbi.time, pnbi.data) 			<span class="pycomments"># create plot</span>
+plt.show() 					<span class="pycomments"># show plot</span></pre>
+	
+	An instance of <span>dd.shotfile</span> is assigned to the variable <span>tot</span>. <span>tot</span> can then simply be called like a function with the name of a signal, a signal group, or a time base as an argument. Here, the argument is the name of the signal containing the total NBI power. The return value is an object containing both data and time.
+	<br />
+	<br />
+	You can execute this example by putting it into a file, e.g. 'example.py', and running the following lines in your shell:
+
+	<pre>
+chmod +x example.py
+./example.py</pre>
+
+	Alternatively, you can start a Python interpreter and run it there. To do that, first copy the Python code above into your clipboard. Then, open an <span>ipython</span> shell with:
+
+	<pre>
+ipython</pre>
+
+	and run the magic command
+<pre>
+%paste
+</pre>
+	to execute the contents of your clipboard. Generally, <span>ipython</span> is recommended for interactive use since it is more comfortable than the standard <span>python</span> interpreter and offers additional functionality. For script execution the regular interpreter is sufficient.
+</p>
+
+<h3>Result</h3>
+
+<img src="example.png" />
+
+<h2 id="more">More documentation</h2>
+<p>
+	For most use cases the above scenario can easily be adapted. If you find yourself in need of more complex functions, you can take a look at the <a href="html/classdd_1_1shotfile.html">Doxygen-generated documentation</a>. This can especially useful when accessing shotfiles that deviate from the standard in some way (e.g. unusual index ordering in signal groups, missing relations to area or time bases, etc.)
+</p>
+
+
+<h2 id="faq">Frequently asked questions</h2>
+<ul>
+	<li>
+		What about ww, kk or sfh?<br />
+		These exist, too, in the same folder as dd, albeit in a less polished state. Please <a href="support">get in touch with us</a> if you need additional information.
+	</li>
+	<li>
+		...
+	</li>
+</ul>
+
+
+<h2 id="support">Support</h2>
+<p>
+	If you require assistance beyond the information provided here, please contact...
+	<ul>
+		<li><a href="mailto:alexander.bock@ipp.mpg.de">Alex</a></li>
+	</ul>
+
+	...or if it's <strong>really</strong> urgent and you didn't receive an answer in a reasonable time:
+
+	<ul>
+		<li><a href="mailto:bernhard.sieglin@ipp.mpg.de">Bernhard</a></li>
+		<li><a href="mailto:giovanni.tardini@ipp.mpg.de">Giovanni</a></li>
+	</ul>
+</p>
+
+<h2 id="src">Source code</h2>
+<p>
+	The source code of dd.py is available at <a href="https://github.com/pyIPP/pyddww">Github</a>.
+</p>
+
+<!--LI><A HREF="dd.html">DD</A>: reading AUG shotfiles</LI>
+<LI>WW: writing AUG shotfiles (contact me)</LI>
+<LI><A HREF="kk.html">KK</A>: using AUG equilibria</LI>
+<LI>SFH: handling Shotfileheader (contact me)</LI-->
+
+</body>
+</html>
