@@ -1238,6 +1238,9 @@ class shotfile(object):
     def getAreaBase(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         if not self.status:
             raise Exception('Shotfile not open')
+        header = self.getObjectHeader(name)
+        if header.objectType=='Area_Base':
+            return self.getObjectData(name)
         info = self.getSignalInfo(name)
         aInfo = self.getAreaBaseInfo(name)
         error = ctypes.c_int32(0)
