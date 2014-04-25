@@ -386,7 +386,7 @@ class signal(object):
         if self.time==None:
             raise Exception('Signal is not time dependent.')
         index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
-        return signal(self.name, self.data[index], self.time[index], self.unit)
+        return signal(self.name, self.header, self.data[index], self.time[index], self.unit)
 
     def max(self):
         return numpy.nanmax(self.data)
@@ -431,9 +431,9 @@ class signal(object):
 
     def __add__(self, rhs):
         try:
-            return signal('(%s + %s)' % (self.name, rhs.name), self.data + numpy.interp(self.time, rhs.time, rhs.data), self.time)
+            return signal('(%s + %s)' % (self.name, rhs.name), self.header, self.data + numpy.interp(self.time, rhs.time, rhs.data), self.time)
         except AttributeError:
-            return signal(self.name, self.data + rhs, self.time)
+            return signal(self.name, self.header, self.data + rhs, self.time)
 
     def __radd__(self, rhs):
         return self.__add__(rhs)
@@ -448,15 +448,15 @@ class signal(object):
 
     def __sub__(self, rhs):
         try:
-            return signal('(%s - %s)' % (self.name, rhs.name), self.data - numpy.interp(self.time, rhs.time, rhs.data), self.time)
+            return signal('(%s - %s)' % (self.name, rhs.name), self.header, self.data - numpy.interp(self.time, rhs.time, rhs.data), self.time)
         except AttributeError:
-            return signal(self.name, self.data - rhs, self.time)
+            return signal(self.name, self.header, self.data - rhs, self.time)
 
     def __rsub__(self, rhs):
-        return signal(self.name, rhs-self.data, self.time)
+        return signal(self.name, self.header, rhs-self.data, self.time)
 
     def __pow__(self, exponent):
-        return signal(self.name, self.data**exponent, self.time)
+        return signal(self.name, self.header, self.data**exponent, self.time)
 
     def __imul__(self, rhs):
         try:
@@ -468,9 +468,9 @@ class signal(object):
 
     def __mul__(self, rhs):
         try:
-            return signal('(%s * %s)' % (self.name, rhs.name), self.data * numpy.interp(self.time, rhs.time, rhs.data), self.time)
+            return signal('(%s * %s)' % (self.name, rhs.name), self.header, self.data * numpy.interp(self.time, rhs.time, rhs.data), self.time)
         except AttributeError:
-            return signal(self.name, self.data * rhs, self.time)
+            return signal(self.name, self.header, self.data * rhs, self.time)
 
     def __rmul__(self, rhs):
         return self.__mul__(rhs)
@@ -485,15 +485,13 @@ class signal(object):
 
     def __div__(self, rhs):
         try:
-            return signal('%s / %s' % (self.name, rhs.name), self.data / numpy.interp(self.time, rhs.time, rhs.data), self.time)
+            return signal('%s / %s' % (self.name, rhs.name), self.header, self.data / numpy.interp(self.time, rhs.time, rhs.data), self.time)
         except AttributeError:
-            return signal(self.name, self.time / rhs, self.time)
+            return signal(self.name, self.header, self.time / rhs, self.time)
         
     def __rdiv__(self, rhs):
-        return signal(self.name, rhs/self.data, self.time)
+        return signal(self.name, self.header, rhs/self.data, self.time)
             
-
-
 class signalGroup(object):
     def __init__(self, name, header, data, time=None, unit='', area=None):
         object.__init__(self)
@@ -514,25 +512,25 @@ class signalGroup(object):
         if self.time==None:
             raise Exception('SignalGroup is not time dependent.')
         index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
-        return signal(self.name, self.data[index], self.time[index], self.unit)
+        return signal(self.name, self.header, self.data[index], self.time[index], self.unit)
 
     def __getitem__(self, indices):
         if self.time==None:
             if self.data.ndim == numpy.size(indices):
-                return signal(self.name, self.data[indices], None, self.unit)
+                return signal(self.name, self.header, self.data[indices], None, self.unit)
             else:
                 raise Exception('Wrong number of indices provided. Get %d needed %d.' % (numpy.size(indices), self.data.ndim))
         else:
             if self.data.ndim-1 == numpy.size(indices):
                 if numpy.size(indices)==1:
                     try:
-                        return signal(self.name, self.data[:,indices[0]], self.time, self.unit)
+                        return signal(self.name, self.header, self.data[:,indices[0]], self.time, self.unit)
                     except Exception:
-                        return signal(self.name, self.data[:, indices], self.time, self.unit)
+                        return signal(self.name, self.header, self.data[:, indices], self.time, self.unit)
                 elif numpy.size(indices)==2:
-                    return signal(self.name, self.data[:,indices[0], indices[1]], self.time, self.unit)
+                    return signal(self.name, self.header, self.data[:,indices[0], indices[1]], self.time, self.unit)
                 elif numpy.size(indices)==3:
-                    return signal(self.name, self.data[:,indices[0], indices[1], indices[2]], self.time, self.unit)
+                    return signal(self.name, self.header, self.data[:,indices[0], indices[1], indices[2]], self.time, self.unit)
                 else:
                     raise Exception('Invalid number of indices: Got %d needed %d' % (numpy.size(indices), (self.data.nnim-1)))
 
@@ -712,6 +710,7 @@ class shotfile(object):
         """ Returns a signalInfo object containing the information of the signal name """
         if not self.status:
             raise Exception('Shotfile not open!')
+        header = self.getObjectHeader(name)
         error = ctypes.c_int32(0)
         lsig = ctypes.c_uint64(len(name))
         typ = ctypes.c_int32(0)
@@ -729,6 +728,8 @@ class shotfile(object):
         __libddww__.ddsinfo_(ctypes.byref(error), ctypes.byref(self.diaref) , sigName, ctypes.byref(typ),
                              tName, ind.ctypes.data_as(ctypes.c_void_p) , lsig , ltname)
         getError(error.value)
+        if header.objectType=='Time_Base':
+            tname = name
         return signalInfo(name.replace('\x00', '').strip(), numpy.uint32(typ.value), ind,
                           tname.replace('\x00','').strip())
 
