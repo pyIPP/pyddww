@@ -550,25 +550,29 @@ class signalGroup(object):
         return locals()
     ndim = property(**ndim())
 
-class areaBaseInfo(object):
-    def __init__(self, name, sizes, dimensions, index):
+class areaBaseInfo(areaBaseHeader):
+    def __init__(self, name, data, text, relationNames, timeIndex):
+        objectHeader.__init__(self, name, data, text, relationNames)
+        self.timeIndex = timeIndex
+        if timeIndex==2:
+            self.data[20], self.data[21] = self.data[21], self.data[20]
+        elif timeIndex==3:
+            self.data[19], self.data[21] = self.data[21], self.data[19]
+
+class areaBase(object):
+    def __init__(self, name, data):
         object.__init__(self)
         self.name = name
-        self.sizes = sizes
-        self.dimensions = dimensions
-        self.index = index
+        self.data = data
 
-    def ndim():
+    def shape():
         def fget(self):
-            return self.sizes[self.sizes>1].size
+            return self.data.shape
         return locals()
-    ndim = property(**ndim())
+    shape = property(**shape())
 
-    def size():
-        def fget(self):
-            return self.sizes[self.sizes>1].prod()
-        return locals()
-    size = property(**size())
+    def __getitem__(self, i):
+        return self.data[i]
 
 
 ## \endcond
@@ -792,7 +796,7 @@ class shotfile(object):
                 dtype=numpy.float32
             return self.getTimeBase(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
         elif objectType==13:
-            raise Exception('Area Base not yet implemented.')
+            return self.getAreaBase(name)
         else:
             raise Exception('Unsupported object type %d for object %s' % (objectType, name))
 
@@ -1226,67 +1230,43 @@ class shotfile(object):
             for el in self.getRelatingObjects(name):
                 objHeader = self.getObjectHeader(el)
                 if objHeader.objectType in ['Sig_Group', 'Signal']:
-                    return self.getAreaBaseInfo(el)
-            raise Exception('No signal/signal group relating to %s' % name)
+                    signalName = el
+                    break
+            return areaBaseInfo(header.name, header.data, header.text, header.relationNames, -1)
+        else:
+            signalName = name
         error = ctypes.c_int32(0)
         sizes = numpy.zeros(3, dtype=numpy.uint32)
         adim = numpy.zeros(3, dtype=numpy.uint32)
         index = ctypes.c_int32(0)
         lname = ctypes.c_uint64(len(name))
         try:
-            sigName = ctypes.c_char_p(name)
+            sigName = ctypes.c_char_p(signalName)
         except TypeError:
-            sigName = ctypes.c_char_p(name.encode())
+            sigName = ctypes.c_char_p(signalName.encode())
         lname = ctypes.c_uint64(len(name))
         __libddww__.ddainfo_(ctypes.byref(error) , ctypes.byref(self.diaref), sigName , sizes.ctypes.data_as(ctypes.c_void_p),
                              adim.ctypes.data_as(ctypes.c_void_p), ctypes.byref(index) , lname)
         getError(error.value)
-        return areaBaseInfo(name, sizes, adim, numpy.int32(index.value))
+        return areaBaseInfo(header.name, header.data, header.text, header.relationNames, numpy.int32(index.value))
 
     def getAreaBase(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         if not self.status:
             raise Exception('Shotfile not open')
         header = self.getObjectHeader(name)
         if header.objectType=='Area_Base':
-            return self.getObjectData(name)
-        info = self.getSignalInfo(name)
-        aInfo = self.getAreaBaseInfo(name)
-        error = ctypes.c_int32(0)
-        if aInfo.index==0:
-            index = aInfo.sizes[:aInfo.ndim]
-            k1 = 1
-            k2 = index[0]
-        else:
-            tInfo = self.getTimeBaseInfo(name)
-            if tBegin==None:
-                tBegin = tInfo.tBegin
-            if tEnd==None:
-                tEnd = tInfo.tEnd
-            k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
-            if aInfo.index==1:
-                index = numpy.append(k2-k1+1, aInfo.sizes[:aInfo.ndim])
-            elif aInfo.index in [2,3]:
-                index = numpy.append(aInfo.sizes[:aInfo.ndim], k2-k1+1)
-            else:
-                raise Exception('Invalid area base index.')
-        try:
-            sigName = ctypes.c_char_p(name)
-        except TypeError:
-            sigName = ctypes.c_char_p(name.encode())
-        lname = ctypes.c_uint64(len(name))
-        if dtype not in [numpy.float32, numpy.float64]:
-            dtype = numpy.float32
-        typ = ctypes.c_uint32(__type__[dtype])
-        data = numpy.zeros(index, dtype=dtype, order='F')
-        albuf = ctypes.c_uint32(aInfo.sizes[0])
-        length = ctypes.c_uint32(0)
-        k1 = ctypes.c_uint32(k1)
-        k2 = ctypes.c_uint32(k2)
-        __libddww__.ddagroup_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2),
-                              ctypes.byref(typ), ctypes.byref(albuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(length),
-                              lname)
-        getError(error.value)
-        return data
+            return areaBase(name, self.getObjectData(name))
+        elif header.objectType in ['Sig_Group', 'Signal']:
+            areaBases = []
+            for el in header.relationNames:
+                if self.getObjectHeader(el).objectType=='Area_Base':
+                    areaBases.append(self.getAreaBase(el, dtype=dtype, tBegin=tBegin, tEnd=tEnd))
+            if len(areaBases)>1:
+                output = {}
+                for el in areaBases:
+                    output[el.name] = el
+                return output
+            return areaBases[0] if len(areaBases)!=0 else None
 
     def getQualifierInfo(self, name):
         if not self.status:
