@@ -152,7 +152,7 @@ class objectHeader(object):
 
     def address():
         def fget(self):
-            return self.data[12]
+            return hex(self.data[12])
         return locals()
     address = property(**address())
 
@@ -198,11 +198,28 @@ class areaBaseHeader(objectHeader):
     def __init__(self, name, data, text):
         objectHeader.__init__(self, name, data, text)
 
-    def unit():
+    def sizes():
         def fget(self):
-            return getPhysicalDimension(self.data[15])
+            return self.data[18:21][self.data[18:21]>1]
         return locals()
-    unit = property(**unit())
+    sizes = property(**sizes())
+
+    def units():
+        def fget(self):
+            output = []
+            for i in xrange(3):
+                if self.data[18+i] > 1:
+                    output.append(getPhysicalDimension(self.data[15+i]))
+                else:
+                    return output
+        return locals()
+    units = property(**units())
+
+    def nSteps():
+        def fget(self):
+            return self.data[21]
+        return locals()
+    nSteps = property(**nSteps())
 
 class qualifierHeader(objectHeader):
     def __init__(self, name, data, text):
@@ -212,7 +229,25 @@ class timeBaseHeader(objectHeader):
     def __init__(self, name, data, text):
         objectHeader.__init__(self, name, data, text)
 
-__headers__ = { 6:signalGroupHeader,
+    def length():
+        def fget(self):
+            return self.data[21]
+        return locals()
+    length = property(**length())
+
+class parameterSetHeader(objectHeader):
+    def __init__(self, name, data, text):
+        objectHeader.__init__(self, name, data, text)
+
+    def items():
+        def fget(self):
+            return self.data[15]
+        return locals()
+    items = property(**items())
+
+
+__headers__ = { 4:parameterSetHeader,
+                6:signalGroupHeader,
                 7:signalHeader,
                 8:timeBaseHeader,
                 13:areaBaseHeader,
@@ -1272,7 +1307,6 @@ in the shotfile. """
         try:
             return __headers__[buffer[0]](name, buffer, text.replace('\x00','').strip())
         except Exception, Error:
-            print Error
             return objectHeader(name, buffer, text.replace('\x00','').strip())
 
     def GetObjectHeader(self, name):
