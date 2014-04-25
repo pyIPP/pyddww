@@ -6,6 +6,9 @@ import warnings
 warnings.simplefilter('always', DeprecationWarning)
 import getpass
 
+## \cond
+# instructs doxygen to ignore everything except the shotfile class itself
+
 __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' + os.environ['SYS'] + '/libddww8.so')
 
 __type__ = {numpy.int32:1, numpy.float32:2, numpy.float64:3, numpy.complex:4, numpy.bool:5,
@@ -102,6 +105,7 @@ def getPhysicalDimension(Unit):
     return output.replace('\x00','').strip()
 
 class dd_info(object):
+    """ Class holding info objects. """
     def __init__(self):
         object.__init__(self)
         self.status = False
@@ -115,7 +119,7 @@ class objectHeader(object):
 
     def buffer():
         def fget(self):
-            warnings.warn('buffer will be removed in the future, please use data.', DeprecationWarning)
+            #warnings.warn('buffer will be removed in the future, please use data.', DeprecationWarning)
             return self.data
         return locals()
     buffer = property(**buffer())
@@ -560,10 +564,14 @@ class areaBaseInfo(object):
     size = property(**size())
 
 
+## \endcond
+# see top
+
 class shotfile(object):
     """ Class to load the data from the shotfile. """
     def __init__(self, diagnostic=None, pulseNumber=None, experiment='AUGD', edition=0):
-        """ Basic constructor. If a diagnostic is specified the shotfile is opened. """
+        """ Basic constructor. If a diagnostic is specified the shotfile is opened.
+        Example: sf = dd.shotfile('MSX', 29761) """
         self.diaref = ctypes.c_int32(0)
         if diagnostic!=None and pulseNumber!=None:
             self.open(diagnostic, pulseNumber, experiment, edition)
@@ -725,17 +733,22 @@ class shotfile(object):
 
     def __call__(self, name, dtype=None, tBegin=None, tEnd=None, calibrated=True):
         """ Unified function to read data from a signal, signalgroup or timebase.
-Keywords:
-dtype: If desired the datatype of the output can be specified. If no dtype is specified,
-the data will be returned as float32 in case of calibrated data and in the format
-used in the shotfile in case of uncalibrated data.
-tBegin: Sets the starting point from which time data will be read. Note here that for signals
-without a time dependence or in case of signal groups where the time index is not the
-first index this keyword has no effect.
-tEnd: Similar to tBegin but this sets the time until which the data will be read.
-calibrated: If True calibrated data together with the unit will be returned. If False the data
-as written in the shotfile will be returned.
-"""
+        Keywords:
+        dtype: If desired the datatype of the output can be specified. If no dtype is specified,
+        the data will be returned as float32 in case of calibrated data and in the format
+        used in the shotfile in case of uncalibrated data.
+        tBegin: Sets the starting point from which time data will be read. Note here that for signals
+        without a time dependence or in case of signal groups where the time index is not the
+        first index this keyword has no effect.
+        tEnd: Similar to tBegin but this sets the time until which the data will be read.
+        calibrated: If True calibrated data together with the unit will be returned. If False the data
+        as written in the shotfile will be returned.
+
+        Example:
+        tot = dd.shotfile('TOT', 29761)
+        Bt = tot('BTF')
+        plt.plot(Bt.time, Bt.data)
+        plt.show() """
         if not self.status:
             raise Exception('Shotfile not open!')
         objectType = self.getObjectValue(name, 'objtype')
@@ -778,8 +791,8 @@ as written in the shotfile will be returned.
 
     def getSignal(self, name, dtype=None, tBegin=None, tEnd=None):
         """ Return uncalibrated signal. If dtype is specified the data is
-converted accordingly, else the data is returned in the format used
-in the shotfile. """
+        converted accordingly, else the data is returned in the format used
+        in the shotfile. """
         if not self.status:
             raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
@@ -822,7 +835,7 @@ in the shotfile. """
 
     def getSignalCalibrated(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         """ Return calibrated signal. If dtype is specified the data is
-converted accordingly, else the data is returned as numpy.float32. """
+        converted accordingly, else the data is returned as numpy.float32. """
         if not self.status:
             raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
@@ -864,13 +877,14 @@ converted accordingly, else the data is returned as numpy.float32. """
 
     def getSignalGroup(self, name, dtype=None, tBegin=None, tEnd=None):
         """ Return uncalibrated signalgroup. If dtype is specified the data is
-converted accordingly, else the data is returned in the format used
-in the shotfile. """
+        converted accordingly, else the data is returned in the format used
+        in the shotfile. """
         if not self.status:
             raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
         try:
             tInfo = self.getTimeBaseInfo(name)
+            tSet = False if tBegin == None and tEnd == None else True
             if tBegin==None:
                 tBegin = tInfo.tBegin
             if tEnd==None:
@@ -878,9 +892,10 @@ in the shotfile. """
             if info.index[0]==tInfo.ntVal:
                 k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
             else:
-                warnings.warn(
-                'Length of time base and first index of signal group "%s" not matching. Ignoring tBegin/tEnd.'%name,
-                RuntimeWarning)
+                if tSet:
+                    warnings.warn(
+                    'Length of time base & 1st index of signal group "%s" not matching. Ignoring tBegin/tEnd as a precaution.'%name,
+                    RuntimeWarning)
                 k1 = 1
                 k2 = info.index[0]
         except Exception:
@@ -909,7 +924,8 @@ in the shotfile. """
                               ctypes.byref(k2), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p),
                               ctypes.byref(leng), lname)
         getError(error.value)
-        return data
+        # transpose data if timebase not first index, e.g. IDA
+        return data if self.getRelations(name).typ[0] == 8 else data.T
 
     def getSignalGroupCalibrated(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         if not self.status:
@@ -917,6 +933,7 @@ in the shotfile. """
         info = self.getSignalInfo(name)
         try:
             tInfo = self.getTimeBaseInfo(name)
+            tSet = False if tBegin == None and tEnd == None else True
             if tBegin==None:
                 tBegin = tInfo.tBegin
             if tEnd==None:
@@ -924,9 +941,10 @@ in the shotfile. """
             if info.index[0]==tInfo.ntVal:
                 k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
             else:
-                warnings.warn(
-                'Length of time base and first index of signal group "%s" not matching. Ignoring tBegin/tEnd.'%name,
-                RuntimeWarning)
+                if tSet:
+                    warnings.warn(
+                    'Length of time base & 1st index of signal group "%s" not matching. Ignoring tBegin/tEnd as a precaution.'%name,
+                    RuntimeWarning)
                 k1 = 1
                 k2 = info.index[0]
         except Exception, Error:
@@ -953,7 +971,8 @@ in the shotfile. """
                              ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(leng),
                              ctypes.byref(ncal), ctypes.c_char_p(physdim), lname, ctypes.c_uint64(8))
         getError(error.value)
-        return data, physdim.replace('\x00', '').strip()
+        # transpose data if timebase not first index, e.g. IDA
+        return data if self.getRelations(name).typ[0] == 8 else data.T, physdim.replace('\x00', '').strip()
 
 
     def getTimeBaseInfo(self, name):
@@ -985,6 +1004,8 @@ in the shotfile. """
             raise Exception('Shotfile not open!')
         info = self.getSignalInfo(name)
         tInfo = self.getTimeBaseInfo(name)
+        if info.timeBase != name:
+            return self.getTimeBase(info.timeBase, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
         if tBegin==None:
             tBegin = tInfo.tBegin
         if tEnd==None:
