@@ -367,13 +367,20 @@ class parameterSet(dict):
         self.name = setName
 
 class signal(object):
-    def __init__(self, name, data, time=None, unit='', area=None):
+    def __init__(self, name, header, data, time=None, unit='', area=None):
         object.__init__(self)
         self.name = name
+        self.header = header
         self.data = data
         self.time = time
         self.unit = unit
         self.area = None
+
+    def description():
+        def fget(self):
+            return self.header.text
+        return locals()
+    description = property(**description())
 
     def __call__(self, tBegin, tEnd):
         if self.time==None:
@@ -488,13 +495,20 @@ class signal(object):
 
 
 class signalGroup(object):
-    def __init__(self, name, data, time=None, unit='', area=None):
+    def __init__(self, name, header, data, time=None, unit='', area=None):
         object.__init__(self)
         self.name = name
+        self.header = header
         self.data = data
         self.time = time
         self.unit = unit
         self.area = area
+
+    def description():
+        def fget(self):
+            return self.header.text
+        return locals()
+    description = property(**description())
 
     def __call__(self, tBegin, tEnd):
         if self.time==None:
@@ -786,7 +800,7 @@ class shotfile(object):
                 time = self.getTimeBase(name, tBegin=tBegin, tEnd=tEnd)
             except Exception:
                 time = None
-            return signalGroup(name, data, time, unit, area=self.getAreaBase(name))
+            return signalGroup(name, self.getObjectHeader(name), data, time, unit, area=self.getAreaBase(name))
         elif objectType==7:
             if calibrated:
                 if dtype not in [numpy.float32, numpy.float64]:
@@ -799,7 +813,7 @@ class shotfile(object):
                 time = self.getTimeBase(name, tBegin=tBegin, tEnd=tEnd)
             except Exception:
                 time = None
-            return signal(name, data, time=time, unit=unit, area=self.getAreaBase(name))
+            return signal(name, self.getObjectHeader(name), data, time=time, unit=unit, area=self.getAreaBase(name))
         elif objectType==8:
             if dtype not in [numpy.float32, numpy.float64]:
                 dtype=numpy.float32
