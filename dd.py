@@ -367,12 +367,13 @@ class parameterSet(dict):
         self.name = setName
 
 class signal(object):
-    def __init__(self, name, data, time=None, unit=''):
+    def __init__(self, name, data, time=None, unit='', area=None):
         object.__init__(self)
         self.name = name
         self.data = data
         self.time = time
         self.unit = unit
+        self.area = None
 
     def __call__(self, tBegin, tEnd):
         if self.time==None:
@@ -487,12 +488,13 @@ class signal(object):
 
 
 class signalGroup(object):
-    def __init__(self, name, data, time=None, unit=''):
+    def __init__(self, name, data, time=None, unit='', area=None):
         object.__init__(self)
         self.name = name
         self.data = data
         self.time = time
         self.unit = unit
+        self.area = area
 
     def __call__(self, tBegin, tEnd):
         if self.time==None:
@@ -560,9 +562,10 @@ class areaBaseInfo(areaBaseHeader):
             self.data[19], self.data[21] = self.data[21], self.data[19]
 
 class areaBase(object):
-    def __init__(self, name, data):
+    def __init__(self, name, header, data):
         object.__init__(self)
         self.name = name
+        self.header = header
         self.data = data
 
     def shape():
@@ -573,6 +576,12 @@ class areaBase(object):
 
     def __getitem__(self, i):
         return self.data[i]
+
+    def units():
+        def fget(self):
+            return self.header.units if len(self.header.units)!=1 else self.header.units[0]
+        return locals()
+    units = property(**units())
 
 
 ## \endcond
@@ -777,7 +786,7 @@ class shotfile(object):
                 time = self.getTimeBase(name, tBegin=tBegin, tEnd=tEnd)
             except Exception:
                 time = None
-            return signalGroup(name, data, time, unit)
+            return signalGroup(name, data, time, unit, area=self.getAreaBase(name))
         elif objectType==7:
             if calibrated:
                 if dtype not in [numpy.float32, numpy.float64]:
@@ -790,7 +799,7 @@ class shotfile(object):
                 time = self.getTimeBase(name, tBegin=tBegin, tEnd=tEnd)
             except Exception:
                 time = None
-            return signal(name, data, time=time, unit=unit)
+            return signal(name, data, time=time, unit=unit, area=self.getAreaBase(name))
         elif objectType==8:
             if dtype not in [numpy.float32, numpy.float64]:
                 dtype=numpy.float32
@@ -1255,7 +1264,7 @@ class shotfile(object):
             raise Exception('Shotfile not open')
         header = self.getObjectHeader(name)
         if header.objectType=='Area_Base':
-            return areaBase(name, self.getObjectData(name))
+            return areaBase(name, header, self.getObjectData(name))
         elif header.objectType in ['Sig_Group', 'Signal']:
             areaBases = []
             for el in header.relationNames:
