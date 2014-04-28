@@ -68,6 +68,7 @@ ssh qa01
 </p>
 <pre>
 setenv PYTHONPATH /afs/ipp/aug/ads-diags/common/python/lib
+module load intel
 module load python27/basic
 </pre>
 <h2 id="usage">Usage</h2>
@@ -84,7 +85,7 @@ import dd 					<span class="pycomments"># load latest (!) dd library</span>
 <span class="pycomments"># use "import dd_YYYYMMDD as dd" to safely load a specific
 # version from /afs/ipp/aug/ads-diags/common/python/lib</span>
 
-tot = dd.shotfile('TOT', 29761) 		<span class="pycomments"># instatiate and open shotfile</span>
+tot = dd.shotfile('TOT', 29761) 		<span class="pycomments"># instantiate and open shotfile</span>
 pnbi = tot('PNBI_TOT') 				<span class="pycomments"># grab total NBI power</span>
 tot.close()					<span class="pycomments"># close shotfile (optional)</span>
 plt.plot(pnbi.time, pnbi.data) 			<span class="pycomments"># create plot</span>
@@ -137,7 +138,7 @@ import dd 					<span class="pycomments"># load latest (!) dd library</span>
 <span class="pycomments"># use "import dd_YYYYMMDD as dd" to safely load a specific
 # version from /afs/ipp/aug/ads-diags/common/python/lib</span>
 
-ida = dd.shotfile('IDA', 29761) 		<span class="pycomments"># instatiate and open shotfile</span>
+ida = dd.shotfile('IDA', 29761) 		<span class="pycomments"># instantiate and open shotfile</span>
 Te = ida('Te') 					<span class="pycomments"># grab electron temperature</span>
 ida.close()					<span class="pycomments"># close shotfile (optional)</span>
 plt.plot(Te.area[1000], Te.data[1000]) 		<span class="pycomments"># create plot of 1000th time point</span>
