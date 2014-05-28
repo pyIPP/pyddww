@@ -101,7 +101,10 @@ def getPhysicalDimension(Unit):
     physdim = ctypes.c_char_p(output)
     lphysdim = ctypes.c_uint64(256)
     __libddww__.dddim_(ctypes.byref(error), ctypes.byref(physunit), physdim, lphysdim)
-    getError(error)
+    try:
+        getError(error)
+    except Exception, Error:
+        return ''
     return output.replace('\x00','').strip()
 
 class dd_info(object):
@@ -624,7 +627,6 @@ class shotfile(object):
         self.close()
         error = ctypes.c_int32(0)
         edit = ctypes.byref(ctypes.c_int32(edition))
-        cshot = ctypes.byref(ctypes.c_uint32(0))
         shot = ctypes.byref(ctypes.c_uint32(pulseNumber))
         try:
             diag = ctypes.c_char_p(diagnostic)
@@ -638,10 +640,8 @@ class shotfile(object):
         ldiag = ctypes.c_uint64(len(diagnostic))
         date = ctypes.c_char_p(b'123456789012345678')
         ldate = ctypes.c_uint64(18)
-        result = __libddww__.ddcshotnr_(exper,diag,shot,cshot,lexp,ldiag)
-        if result==0 and cshot._obj.value==pulseNumber:
-            result = __libddww__.ddopen_(ctypes.byref(error),exper,diag,shot,edit,ctypes.byref(self.diaref),
-                                         date,lexp,ldiag,ldate)
+        result = __libddww__.ddopen_(ctypes.byref(error),exper,diag,shot,edit,ctypes.byref(self.diaref),
+                                     date,lexp,ldiag,ldate)
         getError(error)
 
     def close(self):
@@ -649,8 +649,8 @@ class shotfile(object):
         if self.status:
             error = ctypes.c_int32(0)
             result = __libddww__.ddclose_(ctypes.byref(error), ctypes.byref(self.diaref))
-            getError(error)
             self.diaref.value = 0
+            getError(error)
                
     def getObjectName(self, objectNumber):
         """ Return name of object """
