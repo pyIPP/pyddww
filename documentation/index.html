@@ -140,7 +140,7 @@ import dd 					<span class="pycomments"># load latest (!) dd library</span>
 ida = dd.shotfile('IDA', 29761) 		<span class="pycomments"># instatiate and open shotfile</span>
 Te = ida('Te') 					<span class="pycomments"># grab electron temperature</span>
 ida.close()					<span class="pycomments"># close shotfile (optional)</span>
-plt.plot(Te.area[1000], Te.data[1000]) 		<span class="pycomments"># create plot</span>
+plt.plot(Te.area[1000], Te.data[1000]) 		<span class="pycomments"># create plot of 1000th time point</span>
 plt.title('%s @ t=%3.2fs'%(Te.description, Te.time[1000]))
 plt.ylabel(Te.unit)
 plt.xlabel(Te.area.name)
