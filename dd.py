@@ -1528,4 +1528,7 @@ def touch(fname, times=None):
         os.utime(fname, times)
     finally:
         fhandle.close()
-touch('/afs/ipp/u/abock/pub/pyUsage/dd/%s'%getpass.getuser())
+try:
+    touch('/afs/ipp/u/abock/pub/pyUsage/dd/%s'%getpass.getuser())
+except Exception, e:
+    pass
