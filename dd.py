@@ -35,11 +35,20 @@ __dataformat__ = { 1:numpy.uint8,
                     15:numpy.uint64,
                     1794:numpy.dtype('S8')}
 
-__obj__ = { 1: 'Diagnostic', 2: 'List',       3: 'Device',      4: 'Param_Set', \
-            5: 'Map_Func',   6: 'Sig_Group',  7: 'Signal',      8: 'Time_Base', \
-            9: 'SF_List',   10: 'Algorithm', 11: 'Update_Set', 12: 'Loc_Timer', \
-           13: 'Area_Base', 14: 'Qualifier', 15: 'ModObj',     16: 'Map_Extd',  \
+__obj__ = { 1: 'Diagnostic', 2: 'List',       3: 'Device',      4: 'Param_Set', 
+            5: 'Map_Func',   6: 'Sig_Group',  7: 'Signal',      8: 'Time_Base', 
+            9: 'SF_List',   10: 'Algorithm', 11: 'Update_Set', 12: 'Loc_Timer', 
+           13: 'Area_Base', 14: 'Qualifier', 15: 'ModObj',     16: 'Map_Extd',  
            17: 'Resource'}
+
+
+__fmt2type__ = {    2:6,    3:11,   4:1,     5:2,     6:3,     7:5, 
+                    9:12,  13:10,  14:13,   15:14, 
+                 1794:6, 3842:6, 7938:6, 12034:6, 16130:6, 18178:6}
+
+__fmt2ct__ = {  2:ctypes.c_char,   3:ctypes.c_int16,   4:ctypes.c_int32,
+                5:ctypes.c_float,  6:ctypes.c_double,  9:ctypes.c_uint16,
+               13:ctypes.c_int64, 14:ctypes.c_uint32, 15:ctypes.c_uint64  }
 
 def getError(error):
     """ Check if an error/warning occured. """
@@ -1149,7 +1158,10 @@ class shotfile(object):
         getError(error.value)
         return parameterInfo(setName, parName, numpy.uint32(item.value), numpy.uint16(format.value))
 
-    def getParameter(self, setName, parName, dtype=None):
+    def getParameter(self, setName, parName, dtype=None, workaround=True):
+        if workaround: # git's getParameter workaround
+            return self._getParameterWorkaround(setName, parName)
+
         if not self.status:
             raise Exception('Shotfile not open!')
         info = self.getParameterInfo(setName, parName)
@@ -1455,7 +1467,7 @@ class shotfile(object):
                             if output.tlen != tlen1 and tlen1 != -1:
                                 output.tlen = -1
                         else:
-                            print('No TB found for %s %s' %(obj_d[output.objtyp], name))
+                            warnings.warn('No TB found for %s %s' %(__obj__[output.objtyp], name), RuntimeWarning)
 
                     if output.objtyp == 13: # If 'name' is an AB
                         output.atlen = output.buf[21]
@@ -1517,6 +1529,61 @@ class shotfile(object):
                 if name in header.relationNames:
                     output.append(names[i])
         return output
+
+
+    def _getParameterWorkaround(self, setName, parName):
+        """ Returns the value of the parameter 'parName' of the parameter set 'setName'. """
+        if not self.status:
+            raise Exception('Shotfile not open')
+
+        info = self.getParameterInfo(setName, parName)
+
+        error = ctypes.c_int32(0)
+        _error = ctypes.byref(error)
+        _diaref = ctypes.byref(self.diaref)
+        setn = ctypes.c_char_p(setName)
+        lset = ctypes.c_ulonglong(len(setName))
+        par = ctypes.c_char_p(parName)
+        lpar = ctypes.c_ulonglong(len(parName))
+        physunit = ctypes.c_int32(0)
+        _physunit = ctypes.byref(physunit)
+        # Characters
+        if info.format == 2:
+            ndim = 1
+        if info.format == 1794:
+            ndim = 8
+        elif info.format == 3842:
+            ndim = 16
+        elif info.format == 7938:
+            ndim = 32
+        elif info.format == 16130:
+            ndim = 64
+        if info.format in (2, 1794, 3842, 7938, 16130):
+            nlen = ndim*info.items
+            typin = ctypes.c_int32(6)
+            lbuf = ctypes.c_uint32(nlen)
+            buffer = ctypes.c_char_p('d'*nlen)
+            _typin = ctypes.byref(typin)
+            _lbuf = ctypes.byref(lbuf)
+            result = __libddww__.ddparm_(_error,_diaref,setn,par,_typin,_lbuf,buffer,_physunit,lset,lpar,ctypes.c_int32(ndim))
+            getError(error)
+            a = []
+            for j in range(info.items):
+                a.append(buffer.value[j*ndim:(j+1)*ndim])
+            return numpy.array(a)
+        else:
+            typin = ctypes.c_int32(__fmt2type__[info.format])
+            lbuf = ctypes.c_uint32(info.items)
+            buffer = (__fmt2ct__[info.format]*info.items)()
+            _typin = ctypes.byref(typin)
+            _lbuf = ctypes.byref(lbuf)
+            _buffer = ctypes.byref(buffer)
+            result = __libddww__.ddparm_(_error, _diaref, setn, par, _typin, \
+                                     _lbuf, _buffer, _physunit, lset, lpar)
+            return numpy.frombuffer(buffer, dtype=numpy.dtype(buffer))[0]
+
+
+
 
 
 

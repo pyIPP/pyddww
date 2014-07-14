@@ -1,6 +1,7 @@
 import dd
 import unittest
 import numpy
+from IPython import embed
 
 class testdd(unittest.TestCase):
     def test_init(self):
@@ -85,7 +86,7 @@ class testdd(unittest.TestCase):
         sf.close()
         self.assertFalse(sf.status)
         del sf
-        mystr = "".join(a[:,0]).strip()
+        mystr = "".join(a[0]).strip()
         self.assertEqual(mystr,'Rsquad')
 
     def test_int_sgr_noTB(self):
@@ -131,6 +132,16 @@ class testdd(unittest.TestCase):
         self.assertEqual(info.ind[2], 1)
         self.assertEqual(info.ind[3], 1)
         self.assertEqual(info.rels,['time-A', 'parms-A'])
+
+    def test_GetParameter(self):
+        sf = dd.shotfile()
+        sf.open('NIS', 30133)
+        tol = 1e-4
+        spec1 = sf.getParameter('INJ1','SPEC')
+        self.assertTrue(numpy.abs(spec1[0] - 20.214462) < tol)
+        sf.open('TTH', 30133)
+        law = sf.getParameter('scal_par','descript')
+        self.assertEqual(law[0].rstrip(), 'ITERL-89P(tot), Wtot/Ptot')
 
 if __name__=='__main__':
     unittest.main()
