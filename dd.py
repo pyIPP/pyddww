@@ -5,6 +5,7 @@ import copy
 import warnings
 warnings.simplefilter('always', DeprecationWarning)
 import getpass
+from IPython import embed
 
 ## \cond
 # instructs doxygen to ignore everything except the shotfile class itself
@@ -617,6 +618,7 @@ class shotfile(object):
         """ Basic constructor. If a diagnostic is specified the shotfile is opened.
         Example: sf = dd.shotfile('MSX', 29761) """
         self.diaref = ctypes.c_int32(0)
+        self.edition = None
         if diagnostic!=None and pulseNumber!=None:
             self.open(diagnostic, pulseNumber, experiment, edition)
 
@@ -635,8 +637,9 @@ class shotfile(object):
         """ Function opening the specified shotfile. """
         self.close()
         error = ctypes.c_int32(0)
-        edit = ctypes.byref(ctypes.c_int32(edition))
-        shot = ctypes.byref(ctypes.c_uint32(pulseNumber))
+        edit = ctypes.c_int32(edition)
+        _edit = ctypes.byref(edit)
+        _shot = ctypes.byref(ctypes.c_uint32(pulseNumber))
         try:
             diag = ctypes.c_char_p(diagnostic)
         except TypeError:
@@ -649,9 +652,10 @@ class shotfile(object):
         ldiag = ctypes.c_uint64(len(diagnostic))
         date = ctypes.c_char_p(b'123456789012345678')
         ldate = ctypes.c_uint64(18)
-        result = __libddww__.ddopen_(ctypes.byref(error),exper,diag,shot,edit,ctypes.byref(self.diaref),
+        result = __libddww__.ddopen_(ctypes.byref(error),exper,diag,_shot,_edit,ctypes.byref(self.diaref),
                                      date,lexp,ldiag,ldate)
         getError(error)
+        self.edition = edit.value
 
     def close(self):
         """ Close the shotfile. """
@@ -659,6 +663,7 @@ class shotfile(object):
             error = ctypes.c_int32(0)
             result = __libddww__.ddclose_(ctypes.byref(error), ctypes.byref(self.diaref))
             self.diaref.value = 0
+            self.edition = None
             getError(error)
                
     def getObjectName(self, objectNumber):
