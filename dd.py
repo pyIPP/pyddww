@@ -406,7 +406,10 @@ class signal(object):
     def __call__(self, tBegin, tEnd):
         if self.time==None:
             raise Exception('Signal is not time dependent.')
-        index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
+        if tBegin == tEnd:
+            index = numpy.argmin(numpy.abs(self.time - tBegin))
+        else:
+            index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
         return signal(self.name, self.header, self.data[index], self.time[index], self.unit)
 
     def max(self):
@@ -532,7 +535,10 @@ class signalGroup(object):
     def __call__(self, tBegin, tEnd):
         if self.time==None:
             raise Exception('SignalGroup is not time dependent.')
-        index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
+        if tBegin == tEnd:
+            index = numpy.argmin(numpy.abs(self.time - tBegin))
+        else:
+            index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
         return signal(self.name, self.header, self.data[index], self.time[index], self.unit)
 
     def __getitem__(self, indices):

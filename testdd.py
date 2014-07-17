@@ -26,6 +26,7 @@ class testdd(unittest.TestCase):
     def test_getSignal(self):
         sf = dd.shotfile()
         sf.open('DCN', 29708)
+        self.assertEqual(sf('H-1', tBegin=0, tEnd=0).data[0], numpy.float32(4.1904756e+17))
         self.assertEqual(sf.getSignal('H-1').dtype, numpy.int16)
         self.assertEqual(sf.getSignal('H-1', dtype=numpy.float32).dtype, numpy.float32)
         self.assertEqual(sf.getSignal('H-1', dtype=numpy.float64).dtype, numpy.float64)
