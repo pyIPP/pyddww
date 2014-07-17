@@ -106,17 +106,17 @@ class testdd(unittest.TestCase):
     def test_getrelations(self):
         sf = dd.shotfile()
         sf.open('CEZ', 30407)
-        rel = sf.GetRelations('Ti')
+        rel = sf.getRelations('Ti')
         sf.close()
         self.assertFalse(sf.status)
         del sf
         self.assertEqual(rel.txt[0],'time')
         self.assertEqual(rel.txt[1],'R_time')
 
-    def test_GetInfo(self):
+    def test_getInfo(self):
         sf = dd.shotfile()
         sf.open('CEC', 30133)
-        info = sf.GetInfo('Trad-A')
+        info = sf.getInfo('Trad-A')
         sf.close()
         self.assertFalse(sf.status)
         del sf
@@ -133,15 +133,15 @@ class testdd(unittest.TestCase):
         self.assertEqual(info.ind[3], 1)
         self.assertEqual(info.rels,['time-A', 'parms-A'])
 
-    def test_GetParameter(self):
+    def test_getParameter(self):
         sf = dd.shotfile()
         sf.open('NIS', 30133)
         tol = 1e-4
         spec1 = sf.getParameter('INJ1','SPEC')
-        self.assertTrue(numpy.abs(spec1[0] - 20.214462) < tol)
+        self.assertTrue(numpy.abs(spec1.data[0] - 20.214462) < tol)
         sf.open('TTH', 30133)
         law = sf.getParameter('scal_par','descript')
-        self.assertEqual(law[0].rstrip(), 'ITERL-89P(tot), Wtot/Ptot')
+        self.assertEqual(law.data[0].rstrip(), 'ITERL-89P(tot), Wtot/Ptot')
 
 if __name__=='__main__':
     unittest.main()

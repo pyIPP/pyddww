@@ -14,7 +14,8 @@ __libddww__ = ctypes.cdll.LoadLibrary('/afs/ipp-garching.mpg.de/aug/ads/lib64/' 
 
 __type__ = {numpy.int32:1, numpy.float32:2, numpy.float64:3, numpy.complex:4, numpy.bool:5,
             numpy.byte:6, numpy.int64:10, numpy.int16:11, numpy.uint16:12, numpy.uint32:13,
-            numpy.uint64:14}
+            numpy.uint64:14, numpy.character:6, numpy.dtype('S8'):6, numpy.dtype('S16'):6,
+            numpy.dtype('S32'):6, numpy.dtype('S64'):6}
 
 __fields__ = {'version': lambda: numpy.int32(0), 'level': lambda: numpy.int32(0), 'status': lambda: numpy.int32(0),
               'error': lambda: numpy.int32(0), 'relations': lambda: numpy.zeros(8, dtype=numpy.int32),
@@ -34,14 +35,21 @@ __dataformat__ = { 1:numpy.uint8,
                     13:numpy.int64,
                     14:numpy.uint32,
                     15:numpy.uint64,
-                    1794:numpy.dtype('S8')}
+                    1794:numpy.dtype('S8'),
+                    3842:numpy.dtype('S16'),
+                    7938:numpy.dtype('S32'),
+                    16130:numpy.dtype('S64')}
+
+__bufferlength__ = {numpy.int32:1, numpy.float32:1, numpy.float64:1, numpy.complex:1, numpy.bool:1,
+                    numpy.byte:1, numpy.int64:1, numpy.int16:1, numpy.uint16:1, numpy.uint32:1,
+                    numpy.uint64:1, numpy.dtype('S8'):8, numpy.dtype('S16'):16, numpy.dtype('S32'):32,
+                    numpy.dtype('S64'):64}
 
 __obj__ = { 1: 'Diagnostic', 2: 'List',       3: 'Device',      4: 'Param_Set', 
             5: 'Map_Func',   6: 'Sig_Group',  7: 'Signal',      8: 'Time_Base', 
             9: 'SF_List',   10: 'Algorithm', 11: 'Update_Set', 12: 'Loc_Timer', 
            13: 'Area_Base', 14: 'Qualifier', 15: 'ModObj',     16: 'Map_Extd',  
            17: 'Resource'}
-
 
 __fmt2type__ = {    2:6,    3:11,   4:1,     5:2,     6:3,     7:5, 
                     9:12,  13:10,  14:13,   15:14, 
@@ -1164,8 +1172,8 @@ class shotfile(object):
         return parameterInfo(setName, parName, numpy.uint32(item.value), numpy.uint16(format.value))
 
     def getParameter(self, setName, parName, dtype=None, workaround=True):
-        if workaround: # git's getParameter workaround
-            return self._getParameterWorkaround(setName, parName)
+        #if workaround: # git's getParameter workaround
+        #    return self._getParameterWorkaround(setName, parName)
 
         if not self.status:
             raise Exception('Shotfile not open!')
@@ -1185,9 +1193,10 @@ class shotfile(object):
             typ = ctypes.c_uint32(__type__[dtype])
             data = numpy.zeros(info.items, dtype=dtype)
         except KeyError, Error:
-            typ = ctypes.c_uint32(0)
-            data = numpy.zeros(info.items, dtype=__dataformat__[info.format])
-        lbuf = ctypes.c_int32(info.items)
+            dtype = __dataformat__[info.format]
+            typ = ctypes.c_uint32(__type__[dtype])
+            data = numpy.zeros(info.items, dtype=dtype)
+        lbuf = ctypes.c_int32(info.items*__bufferlength__[dtype])
         physunit = ctypes.c_int32(0)
         __libddww__.ddparm_(ctypes.byref(error), ctypes.byref(self.diaref), name, pname, ctypes.byref(typ), ctypes.byref(lbuf),
                             data.ctypes.data_as(ctypes.c_void_p), ctypes.byref(physunit), lname, lpname)
@@ -1534,58 +1543,6 @@ class shotfile(object):
                 if name in header.relationNames:
                     output.append(names[i])
         return output
-
-
-    def _getParameterWorkaround(self, setName, parName):
-        """ Returns the value of the parameter 'parName' of the parameter set 'setName'. """
-        if not self.status:
-            raise Exception('Shotfile not open')
-
-        info = self.getParameterInfo(setName, parName)
-
-        error = ctypes.c_int32(0)
-        _error = ctypes.byref(error)
-        _diaref = ctypes.byref(self.diaref)
-        setn = ctypes.c_char_p(setName)
-        lset = ctypes.c_ulonglong(len(setName))
-        par = ctypes.c_char_p(parName)
-        lpar = ctypes.c_ulonglong(len(parName))
-        physunit = ctypes.c_int32(0)
-        _physunit = ctypes.byref(physunit)
-        # Characters
-        if info.format == 2:
-            ndim = 1
-        if info.format == 1794:
-            ndim = 8
-        elif info.format == 3842:
-            ndim = 16
-        elif info.format == 7938:
-            ndim = 32
-        elif info.format == 16130:
-            ndim = 64
-        if info.format in (2, 1794, 3842, 7938, 16130):
-            nlen = ndim*info.items
-            typin = ctypes.c_int32(6)
-            lbuf = ctypes.c_uint32(nlen)
-            buffer = ctypes.c_char_p('d'*nlen)
-            _typin = ctypes.byref(typin)
-            _lbuf = ctypes.byref(lbuf)
-            result = __libddww__.ddparm_(_error,_diaref,setn,par,_typin,_lbuf,buffer,_physunit,lset,lpar,ctypes.c_int32(ndim))
-            getError(error)
-            a = []
-            for j in range(info.items):
-                a.append(buffer.value[j*ndim:(j+1)*ndim])
-            return numpy.array(a)
-        else:
-            typin = ctypes.c_int32(__fmt2type__[info.format])
-            lbuf = ctypes.c_uint32(info.items)
-            buffer = (__fmt2ct__[info.format]*info.items)()
-            _typin = ctypes.byref(typin)
-            _lbuf = ctypes.byref(lbuf)
-            _buffer = ctypes.byref(buffer)
-            result = __libddww__.ddparm_(_error, _diaref, setn, par, _typin, \
-                                     _lbuf, _buffer, _physunit, lset, lpar)
-            return numpy.frombuffer(buffer, dtype=numpy.dtype(buffer))[0]
 
 
 
