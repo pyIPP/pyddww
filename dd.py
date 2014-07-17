@@ -1171,10 +1171,7 @@ class shotfile(object):
         getError(error.value)
         return parameterInfo(setName, parName, numpy.uint32(item.value), numpy.uint16(format.value))
 
-    def getParameter(self, setName, parName, dtype=None, workaround=True):
-        #if workaround: # git's getParameter workaround
-        #    return self._getParameterWorkaround(setName, parName)
-
+    def getParameter(self, setName, parName, dtype=None):
         if not self.status:
             raise Exception('Shotfile not open!')
         info = self.getParameterInfo(setName, parName)
