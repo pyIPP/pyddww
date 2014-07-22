@@ -43,7 +43,7 @@ __dataformat__ = { 1:numpy.uint8,
 __bufferlength__ = {numpy.int32:1, numpy.float32:1, numpy.float64:1, numpy.complex:1, numpy.bool:1,
                     numpy.byte:1, numpy.int64:1, numpy.int16:1, numpy.uint16:1, numpy.uint32:1,
                     numpy.uint64:1, numpy.dtype('S8'):8, numpy.dtype('S16'):16, numpy.dtype('S32'):32,
-                    numpy.dtype('S64'):64}
+                    numpy.dtype('S64'):64, numpy.character:1}
 
 __obj__ = { 1: 'Diagnostic', 2: 'List',       3: 'Device',      4: 'Param_Set', 
             5: 'Map_Func',   6: 'Sig_Group',  7: 'Signal',      8: 'Time_Base', 
