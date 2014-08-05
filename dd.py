@@ -395,7 +395,7 @@ class signal(object):
         self.data = data
         self.time = time
         self.unit = unit
-        self.area = None
+        self.area = area
 
     def description():
         def fget(self):
@@ -539,7 +539,9 @@ class signalGroup(object):
             index = numpy.argmin(numpy.abs(self.time - tBegin))
         else:
             index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
-        return signal(self.name, self.header, self.data[index], self.time[index], self.unit)
+        area = copy.copy(self.area)
+        area.data = area.data[index]
+        return signal(self.name, self.header, self.data[index], self.time[index], self.unit, area)
 
     def __getitem__(self, indices):
         if self.time==None:
