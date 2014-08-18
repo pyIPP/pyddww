@@ -1,11 +1,11 @@
 import numpy
 import ctypes
 import os
-import copy
+from copy import copy
 import warnings
 warnings.simplefilter('always', DeprecationWarning)
 import getpass
-from IPython import embed
+#from IPython import embed
 
 ## \cond
 # instructs doxygen to ignore everything except the shotfile class itself
@@ -539,7 +539,7 @@ class signalGroup(object):
             index = numpy.argmin(numpy.abs(self.time - tBegin))
         else:
             index = numpy.arange(self.time.size)[(self.time >= tBegin)*(self.time <= tEnd)]
-        area = copy.copy(self.area)
+        area = copy(self.area)
         area.data = area.data[index]
         return signal(self.name, self.header, self.data[index], self.time[index], self.unit, area)
 
@@ -1315,7 +1315,13 @@ class shotfile(object):
             areaBases = []
             for el in header.relationNames:
                 if self.getObjectHeader(el).objectType=='Area_Base':
-                    areaBases.append(self.getAreaBase(el, dtype=dtype, tBegin=tBegin, tEnd=tEnd))
+                    # There have been cases where time bases had object type Area_Base.
+                    # Reason for this is so far unknown.
+                    # Since it resulted in "None" being returned from getAreaBase, 
+                    # a check had to be introduced:
+                    toAppend = self.getAreaBase(el, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                    if toAppend:
+                        areaBases.append(toAppend)
             if len(areaBases)>1:
                 output = {}
                 for el in areaBases:
@@ -1370,21 +1376,20 @@ class shotfile(object):
             _name = ctypes.c_char_p(name)
         except TypeError:
             _name = ctypes.c_char_p(name.encode())
-        buffer = numpy.zeros(26, dtype=numpy.int32)
+        buf = numpy.zeros(26, dtype=numpy.int32)
         lname = ctypes.c_uint64(len(name))
         ltext = ctypes.c_uint64(len(text))
         result = __libddww__.ddobjhdr_(ctypes.byref(error), ctypes.byref(self.diaref), _name, 
-                                       buffer.ctypes.data_as(ctypes.c_void_p), ctypes.c_char_p(text), 
+                                       buf.ctypes.data_as(ctypes.c_void_p), ctypes.c_char_p(text), 
                                        lname, ltext)
         getError(error)
-        relationNames = []
-        for i in xrange(4,12):
-            if buffer[i]!=65535:
-                relationNames.append(self.getObjectName(buffer[i]))
+        relationNames = [self.getObjectName(buf[i]) for i in xrange(4,12) if buf[i] != 65535]
         try:
-            return __headers__[buffer[0]](name, buffer, text.replace('\x00','').strip(), relationNames)
+            toReturn = __headers__[buf[0]](name, buf, text.replace('\x00','').strip(), relationNames)
         except Exception, Error:
-            return objectHeader(name, buffer, text.replace('\x00','').strip(), relationNames)
+            toReturn = objectHeader(name, buf, text.replace('\x00','').strip(), relationNames)
+
+        return toReturn
 
     def GetObjectHeader(self, name):
         warnings.warn('GetObjectHeader will be removed in the future, please use getObjectHeader.', DeprecationWarning)
