@@ -635,6 +635,7 @@ class shotfile(object):
         Example: sf = dd.shotfile('MSX', 29761) """
         self.diaref = ctypes.c_int32(0)
         self.edition = None
+        self.shot = None
         if diagnostic!=None and pulseNumber!=None:
             self.open(diagnostic, pulseNumber, experiment, edition)
 
@@ -655,7 +656,8 @@ class shotfile(object):
         error = ctypes.c_int32(0)
         edit = ctypes.c_int32(edition)
         _edit = ctypes.byref(edit)
-        _shot = ctypes.byref(ctypes.c_uint32(pulseNumber))
+        shot = ctypes.c_uint32(pulseNumber)
+        _shot = ctypes.byref(shot)
         try:
             diag = ctypes.c_char_p(diagnostic)
         except TypeError:
@@ -671,6 +673,7 @@ class shotfile(object):
         result = __libddww__.ddopen_(ctypes.byref(error),exper,diag,_shot,_edit,ctypes.byref(self.diaref),
                                      date,lexp,ldiag,ldate)
         getError(error)
+        self.shot = int(shot.value)
         self.edition = edit.value
 
     def close(self):
@@ -680,6 +683,7 @@ class shotfile(object):
             result = __libddww__.ddclose_(ctypes.byref(error), ctypes.byref(self.diaref))
             self.diaref.value = 0
             self.edition = None
+            self.shot = None
             getError(error)
                
     def getObjectName(self, objectNumber):
