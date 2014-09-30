@@ -144,5 +144,16 @@ class testdd(unittest.TestCase):
         law = sf.getParameter('scal_par','descript')
         self.assertEqual(law.data[0].rstrip(), 'ITERL-89P(tot), Wtot/Ptot')
 
+    def test_getSignalGroupSlice(self):
+    	sf = dd.shotfile('MSX', 28053)
+	sig = sf('SG-1', index=6, tEnd=0.1 )
+	tol = 1e-6
+	self.assertTrue(numpy.abs(sig.data[0] + 1.6354893) < tol)
+	self.assertTrue(numpy.abs(sig.data[-1] + 0.0094636055) < tol)
+	sigraw = sf('SG-2', index=2, tEnd=0.1, calibrated=0 )
+	self.assertTrue(sigraw.data[0] == 8195)
+	self.assertTrue(sigraw.data[-1] == 8193)
+	del sf
+
 if __name__=='__main__':
     unittest.main()

@@ -800,7 +800,7 @@ class shotfile(object):
         except Exception, Error:
             return numpy.int32(val.value)
 
-    def __call__(self, name, dtype=None, tBegin=None, tEnd=None, calibrated=True):
+    def __call__(self, name, dtype=None, tBegin=None, tEnd=None, calibrated=True, index=None):
         """ Unified function to read data from a signal, signalgroup or timebase.
         Keywords:
         dtype: If desired the datatype of the output can be specified. If no dtype is specified,
@@ -827,10 +827,17 @@ class shotfile(object):
             raise Exception('Mapping function not yet implemented.')
         elif objectType==6:
             if calibrated:
-                data, unit = self.getSignalGroupCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                if index==None:
+                    data, unit = self.getSignalGroupCalibrated(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                else:
+                    data, unit = self.getSignalGroupSliceCalibrated(name, index, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
             else:
-                data = self.getSignalGroup(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
-                unit = ''
+                if index==None:
+                    data = self.getSignalGroup(name, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                    unit = ''
+                else:
+                    data = self.getSignalGroupSlice(name, index, dtype=dtype, tBegin=tBegin, tEnd=tEnd)
+                    unit = ''
             try:
                 time = self.getTimeBase(name, tBegin=tBegin, tEnd=tEnd)
             except Exception:
@@ -995,7 +1002,119 @@ class shotfile(object):
         getError(error.value)
         # transpose data if timebase not first index, e.g. IDA
         return data if self.getRelations(name).typ[0] == 8 else data.T
+ 
+    def getSignalGroupSlice(self, name, idx, dtype=None, tBegin=None, tEnd=None):
+        """ Return uncalibrated signalgroup data slice. If dtype is specified the
+        data is converted accordingly, else the data is returned in the format
+        used in the shotfile. """
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        info = self.getSignalInfo(name)
+        try:
+            tInfo = self.getTimeBaseInfo(name)
+            tSet = False if tBegin == None and tEnd == None else True
+            if tBegin==None:
+                tBegin = tInfo.tBegin
+            if tEnd==None:
+                tEnd = tInfo.tEnd
+            if info.index[0]==tInfo.ntVal:
+                k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+            else:
+                if tSet:
+                    warnings.warn(
+                    'Length of time base & 1st index of signal group "%s" not matching. Ignoring tBegin/tEnd as a precaution.'%name,
+                    RuntimeWarning)
+                k1 = 1
+                k2 = info.index[0]
+        except Exception:
+            k1 = 1
+            k2 = info.index[0]
+        size = (k2-k1+1)                
+        # index = numpy.append(k2-k1+1, info.index[1:])
+        try:
+            typ = ctypes.c_uint32(__type__[dtype])
+            data = numpy.zeros(size, dtype=dtype, order='F')
+        except KeyError, Error:
+            dataformat = self.getObjectValue(name, 'dataformat')
+            typ = ctypes.c_uint32(0)
+            data = numpy.zeros(size, dtype=__dataformat__[dataformat], order='F')
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        error = ctypes.c_int32(0)
+        leng = ctypes.c_uint32(0)
+        lbuf = ctypes.c_uint32(k2-k1+1)
+        k1 = ctypes.c_uint32(k1)
+        k2 = ctypes.c_uint32(k2)
+        lname = ctypes.c_uint64(len(name))
+        slidx = ctypes.c_uint32(idx)
+        # DDXTRSIGNAL (error, diaref, name, k1, k2, indices, type,lbuf, buffer, leng)
+        __libddww__.ddxtrsignal_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1), ctypes.byref(k2),
+                                 ctypes.byref(slidx), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p),
+                                 ctypes.byref(leng), lname)
+        getError(error.value)
+        # transpose data if timebase not first index, e.g. IDA
+        return data if self.getRelations(name).typ[0] == 8 else data.T
 
+    def getSignalGroupSliceCalibrated(self, name, idx, dtype=None, tBegin=None, tEnd=None):
+        """Return calibrated signalgroup data slice (single track). If dtype is specified
+        the data is converted accordingly, else the data is returned in the format used
+        in the shotfile. """
+        if not self.status:
+            raise Exception('Shotfile not open!')
+        info = self.getSignalInfo(name)
+        try:
+            tInfo = self.getTimeBaseInfo(name)
+            tSet = False if tBegin == None and tEnd == None else True
+            if tBegin==None:
+                tBegin = tInfo.tBegin
+            if tEnd==None:
+                tEnd = tInfo.tEnd
+            if info.index[0]==tInfo.ntVal:
+                k1, k2 = self.getTimeBaseIndices(name, tBegin, tEnd)
+            else:
+                if tSet:
+                    warnings.warn(
+                    'Length of time base & 1st index of signal group "%s" not matching. Ignoring tBegin/tEnd as a precaution.'%name,
+                    RuntimeWarning)
+                k1 = 1
+                k2 = info.index[0]
+        except Exception:
+            k1 = 1
+            k2 = info.index[0]
+        size = (k2-k1+1)                
+        # index = numpy.append(k2-k1+1, info.index[1:])
+        if dtype not in [numpy.float32, numpy.float64]:
+            dtype=numpy.float32        
+        try:
+            typ = ctypes.c_uint32(__type__[dtype])
+            data = numpy.zeros(size, dtype=dtype, order='F')
+        except KeyError, Error:
+            dataformat = self.getObjectValue(name, 'dataformat')
+            typ = ctypes.c_uint32(0)
+            data = numpy.zeros(size, dtype=__dataformat__[dataformat], order='F')
+        try:
+            sigName = ctypes.c_char_p(name)
+        except TypeError:
+            sigName = ctypes.c_char_p(name.encode())
+        error = ctypes.c_int32(0)
+        leng = ctypes.c_uint32(0)
+        lbuf = ctypes.c_uint32(k2-k1+1)
+        k1 = ctypes.c_uint32(k1)
+        k2 = ctypes.c_uint32(k2)
+        lname = ctypes.c_uint64(len(name))
+        slidx = ctypes.c_uint32(idx)
+        physdim = b' '*8
+        ncal = ctypes.c_int32(0)
+        #  DDCXSIG (error, diaref, name, k1, k2, indices, type, lbuf, buffer, leng, ncal, physdim)
+        __libddww__.ddcxsig_(ctypes.byref(error), ctypes.byref(self.diaref), sigName, ctypes.byref(k1),
+                              ctypes.byref(k2), ctypes.byref(slidx), ctypes.byref(typ), ctypes.byref(lbuf), data.ctypes.data_as(ctypes.c_void_p),
+                              ctypes.byref(leng), ctypes.byref(ncal), ctypes.c_char_p(physdim), lname, ctypes.c_uint64(8))
+        getError(error.value)
+        # transpose data if timebase not first index, e.g. IDA
+        return data if self.getRelations(name).typ[0] == 8 else data.T, physdim.replace('\x00', '').strip()
+    
     def getSignalGroupCalibrated(self, name, dtype=numpy.float32, tBegin=None, tEnd=None):
         if not self.status:
             raise Exception('Shotfile not open!')
@@ -1042,7 +1161,6 @@ class shotfile(object):
         getError(error.value)
         # transpose data if timebase not first index, e.g. IDA
         return data if self.getRelations(name).typ[0] == 8 else data.T, physdim.replace('\x00', '').strip()
-
 
     def getTimeBaseInfo(self, name):
         """ Return information regarding timebase corresponding to name. """
