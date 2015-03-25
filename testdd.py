@@ -1,6 +1,7 @@
 import dd
 import unittest
 import numpy
+import datetime
 from IPython import embed
 
 class testdd(unittest.TestCase):
@@ -154,6 +155,16 @@ class testdd(unittest.TestCase):
 	self.assertTrue(sigraw.data[0] == 8195)
 	self.assertTrue(sigraw.data[-1] == 8193)
 	del sf
+
+    def test_getShotfileCreationDate(self):
+        sf = dd.shotfile('MAG', 30774)
+        test_date = datetime.datetime(
+            year=2014, month=5, day=13, hour=14, minute=33, second=41
+        )
+        self.assertEqual(
+            (test_date-sf.getShotfileCreationDate()).total_seconds(), 0.0
+        )
+        del sf
 
 if __name__=='__main__':
     unittest.main()
