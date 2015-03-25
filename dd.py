@@ -5,6 +5,7 @@ from copy import copy
 import warnings
 warnings.simplefilter('always', DeprecationWarning)
 import getpass
+import datetime
 #from IPython import embed
 
 ## \cond
@@ -675,6 +676,7 @@ class shotfile(object):
         getError(error)
         self.shot = int(shot.value)
         self.edition = edit.value
+        self.date = date.value
 
     def close(self):
         """ Close the shotfile. """
@@ -715,6 +717,14 @@ class shotfile(object):
                 counter += 1
             except Exception:
                 return output
+
+    def getShotfileCreationDate(self, format='%d%b%Y;%H:%M:%S'):
+        """ Returns the date of creation of the shotfile as a 
+        datetime.datetime object
+        there are several different formats depending on the diagnostic
+        standard is e.g. '13May2014;14:33:41'
+        """
+        return datetime.datetime.strptime(self.date, format)
 
     def getSignalNames(self):
         """ Return list of all signal names in the shotfile. """
